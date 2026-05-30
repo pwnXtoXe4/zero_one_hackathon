@@ -44,23 +44,12 @@ class ReductionOption:
     lead_time_months: int = 0    # months before benefit starts
     category: str = "efficiency"
 
-    @property
-    def display_name(self) -> str:
-        return self.name
-
 
 @dataclass
 class EmissionSource:
     id: str
     tons_co2e_per_year: int
     reduction_options: List[ReductionOption] = field(default_factory=list)
-
-    @property
-    def max_reduction_tons(self) -> float:
-        return sum(
-            opt.max_reduction_pct * self.tons_co2e_per_year
-            for opt in self.reduction_options
-        )
 
 
 # Pre-built emission sources matching the IDEA_CARBON_REDUCTION.md spec
@@ -159,27 +148,6 @@ FORECAST_TARGETS = {
 }
 
 # ---------------------------------------------------------------------------
-# Contextual keywords for Sybilion (shared across forecasts)
-# ---------------------------------------------------------------------------
-
-CONTEXT_KEYWORDS = [
-    "EU ETS reform",
-    "CBAM phase-in",
-    "Fit for 55",
-    "carbon border tax",
-    "renewable energy auction",
-    "natural gas price forecast",
-    "industrial production index",
-    "direct air capture scale-up",
-    "green hydrogen cost curve",
-    "energy crisis",
-    "recession probability",
-    "ESG fund flows",
-    "SEC climate disclosure",
-    "PPA price index",
-]
-
-# ---------------------------------------------------------------------------
 # MAC curve configuration
 # ---------------------------------------------------------------------------
 
@@ -220,12 +188,4 @@ def load_timeseries(file_name: str) -> Dict[str, float]:
     if not path.exists():
         raise FileNotFoundError(f"Time series file not found: {path}")
     with open(path) as f:
-        return json.load(f)
-
-
-def load_config(file_path: Optional[str] = None) -> dict:
-    """Load a JSON company configuration file (override defaults)."""
-    if file_path is None:
-        return COMPANY_PROFILE
-    with open(file_path) as f:
         return json.load(f)

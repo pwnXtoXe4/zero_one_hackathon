@@ -26,12 +26,6 @@ from ..regime_detector import RegimeStatus
 
 CONFIDENCE_GREEN = 1.0
 CONFIDENCE_YELLOW = 1.5
-CONFIDENCE_RED = 3.0
-
-# Friedrich et al. (2019) LPPL crash odds parameters
-PSY_SIGNIFICANCE = 0.05        # Phillips-Shi-Yu test significance
-LPPL_OSCILLATION_MIN = 3.0     # minimum log-periodic oscillations for crash signal
-LPPL_CRASH_WINDOW = 3          # months until potential crash
 
 
 @dataclass

@@ -15,13 +15,12 @@ References
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
-from .config import CARBON_EXPOSURE, COMPANY_PROFILE, load_timeseries
+from .config import CARBON_EXPOSURE, COMPANY_PROFILE
 
 logger = logging.getLogger(__name__)
 from .decision_agent import run_decision_agent
@@ -39,7 +38,6 @@ from .sybilion_client import ForecastResult, parse_forecast_response
 BACKTEST_WINDOW_MONTHS = 60
 BACKTEST_MIN_WINDOWS = 12
 BACKTEST_STEP_MONTHS = 3
-FORECAST_HORIZON_MONTHS = 6
 FORECAST_HORIZONS = [1, 3, 6]
 
 _SYBILION_CALIBRATION: Optional[Dict] = None
@@ -220,45 +218,6 @@ class BacktestResult:
     stats_vs_spot: Optional[StatisticalSummary] = None
     stats_vs_equal_thirds: Optional[StatisticalSummary] = None
     forecast_mode: str = "naive"    # 'naive' (out-of-sample) or 'oracle'
-
-
-def generate_mock_forecast_for_date(
-    current_price: float,
-    current_date: str,
-    trend: str = "UP",
-    horizons: Optional[List[int]] = None,
-    noise_std: float = 0.05,
-    seed: Optional[int] = None,
-) -> ForecastResult:
-    """Generate a mock forecast anchored to a specific evaluation date."""
-    if horizons is None:
-        horizons = [1, 3, 6, 12]
-
-    rng = np.random.default_rng(seed if seed is not None else hash(current_date) % 2**32)
-    result = ForecastResult(target_name="backtest_eu_ets_price")
-    result.current_value = current_price
-
-    drift = {"UP": 0.03, "DOWN": -0.02, "FLAT": 0.005}
-
-    for h in horizons:
-        trend_drift = drift.get(trend, 0.005) * h
-        noise = rng.normal(0, noise_std)
-        value = current_price * (1 + trend_drift + noise)
-        band = value * (0.10 + 0.02 * h)
-        result.forecast_points[h] = {
-            "value": round(value, 2),
-            "low": round(value - band, 2),
-            "high": round(value + band, 2),
-        }
-
-    result.driver_importance = {
-        "EU ETS reform": [0.25, 0.40, 0.45, 0.55],
-        "Natural gas price": [0.30, 0.20, 0.10, 0.05],
-        "CBAM phase-in": [0.10, 0.15, 0.25, 0.35],
-        "Renewable deployment": [0.15, 0.22, 0.18, 0.12],
-    }
-    result.backtest_accuracy = 0.65
-    return result
 
 
 def _determine_trend(prices: List[float], months: int = 6) -> str:
@@ -553,7 +512,6 @@ def run_backtest(
                 mac_curve=mac,
                 budget=COMPANY_PROFILE["annual_reduction_budget_eur"],
                 current_ets_price=spot_price,
-                cbam_tons=CARBON_EXPOSURE["cbam_exposed_imports_tons_co2e"],
                 allowances_needed=allowances_needed,
                 regime_monitor=regime_monitor,
                 historical_prices=hist_prices,
@@ -744,12 +702,3 @@ def format_backtest_report(bt: BacktestResult, prices: Dict[str, float]) -> str:
     lines.append("")
     lines.append("=" * 72)
     return "\n".join(lines)
-
-
-def load_timeseries(path_or_name: str, data_dir: Optional[str] = None) -> Dict[str, float]:
-    """Load a time series from file. Wraps config.load_timeseries."""
-    from .config import DATA_DIR as CFG_DATA_DIR
-    from .config import load_timeseries as cfg_load
-
-    data_dir_path = Path(data_dir) if data_dir else CFG_DATA_DIR
-    return cfg_load(path_or_name)

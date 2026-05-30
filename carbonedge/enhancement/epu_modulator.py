@@ -182,18 +182,3 @@ class EpuModulator:
     def reset(self):
         """Clear rolling history for backtest window isolation."""
         self._history = []
-
-    def advisory(self) -> str:
-        """Generate a human-readable EPU advisory."""
-        state = self.latest
-        if state is None:
-            return "EPU: no data"
-        parts = [
-            f"EPU: {state.epu_value:.0f} ({state.level})",
-            f"z-score: {state.z_score:+.1f} vs 12m mean {state.epu_12m_mean:.0f}",
-        ]
-        if state.spike:
-            parts.append("SPIKE: EPU >2 sigma above mean -> consider buying now before volatility surges.")
-        if state.level == "CRISIS":
-            parts.append("CRISIS: strongly consider freezing purchases until EPU normalizes.")
-        return " | ".join(parts)

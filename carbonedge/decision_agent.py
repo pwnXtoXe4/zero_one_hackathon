@@ -25,23 +25,15 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
-from .config import (
-    CARBON_EXPOSURE,
-    COMPANY_PROFILE,
-    DECISION_THRESHOLDS,
-    EMISSION_SOURCES,
-    ReductionOption,
-)
+from .config import CARBON_EXPOSURE, COMPANY_PROFILE
 from .enhancement.driver_filter import DriverBias, DriverFilter
 from .enhancement.epu_modulator import EpuModulator, EpuState
 from .enhancement.regime_enhancer import RegimeBand, get_confidence_multiplier
 from .enhancement.structural_context import StructuralBackdrop, StructuralContext
 from .fundamental.balance_model import FundamentalModel
-from .fundamental.cap_schedule import build_cap_schedule
-from .fundamental.data_sources import load_ets_csv
-from .fundamental.driver_monitor import DriverMonitor, DriverState
+from .fundamental.driver_monitor import DriverMonitor
 from .mac_curve import MACCurve
-from .budget_allocator import allocate_budget, AllocationPlan
+from .budget_allocator import allocate_budget
 from .procurement.ladder_rules import ladder_fallback, LadderInput
 from .procurement.optimizer import (
     ProcurementPlan,
@@ -75,17 +67,11 @@ class EnhancedDecision:
     # Procurement plan
     procurement: ProcurementPlan
 
-    # Legacy fields for compatibility
-    stream_a: Optional = None   # MarketTimingDecision (keep for now)
-    stream_b: Optional[List] = None
-    stream_c: Optional[List] = None
-    cbam: Optional = None
+    # Auxiliary state used by output formatter
     mac_curve: Optional[MACCurve] = None
     budget_summary: Optional[Dict] = None
-    budget_allocation: Optional = None   # AllocationPlan
     alert_triggers: List[str] = field(default_factory=list)
     regime_status: Optional[RegimeStatus] = None
-    regime_backtest: Optional[Dict] = None
 
 
 # ---------------------------------------------------------------------------
@@ -416,13 +402,9 @@ def run_decision_agent(
     mac_curve: MACCurve,
     budget: float,
     current_ets_price: float,
-    cbam_tons: int,
     allowances_needed: int,
-    grid_carbon_forecast: Optional[Dict[int, float]] = None,
-    production_demand_forecast: Optional[Dict[int, float]] = None,
     regime_monitor: Optional[RegimeMonitor] = None,
     historical_prices: Optional[List[float]] = None,
-    historical_forecasts: Optional[List[float]] = None,
     fundamental_model: Optional[FundamentalModel] = None,
     driver_monitor: Optional[DriverMonitor] = None,
     evaluation_date: str = "",
@@ -516,7 +498,6 @@ def run_decision_agent(
         driver_bias=driver_bias,
         structural=structural,
         procurement=procurement,
-        budget_allocation=reduction_plan,
         alert_triggers=alerts,
         budget_summary={
             "total_budget": budget,

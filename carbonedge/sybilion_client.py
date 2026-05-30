@@ -9,11 +9,8 @@ This module provides helpers to structure requests and parse responses.
 import json
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from pathlib import Path
+from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
-
-import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -342,48 +339,3 @@ def parse_forecast_response(
 def _months_from_now(dt: datetime, reference_date: Optional[datetime] = None) -> int:
     now = reference_date or datetime.now()
     return max(1, (dt.year - now.year) * 12 + (dt.month - now.month))
-
-
-# ---------------------------------------------------------------------------
-# Mock forecast generator (for testing without live Sybilion API)
-# ---------------------------------------------------------------------------
-
-def generate_mock_forecast(
-    current_price: float,
-    trend: str = "UP",
-    noise_std: float = 0.05,
-    horizons: List[int] = None,
-) -> ForecastResult:
-    """
-    Generate a mock Sybilion forecast for testing the decision agent.
-
-    This avoids live API calls during development and testing.
-    """
-    if horizons is None:
-        horizons = [1, 3, 6, 12]
-
-    result = ForecastResult(target_name="mock_ets_price")
-    result.current_value = current_price
-
-    rng = np.random.default_rng(42)  # deterministic for testing
-    drift = {"UP": 0.03, "DOWN": -0.02, "FLAT": 0.005}
-
-    for h in horizons:
-        trend_drift = drift.get(trend, 0.005) * h
-        noise = rng.normal(0, noise_std)
-        value = current_price * (1 + trend_drift + noise)
-        band = value * (0.1 + 0.02 * h)  # confidence band widens with horizon
-        result.forecast_points[h] = {
-            "value": round(value, 2),
-            "low": round(value - band, 2),
-            "high": round(value + band, 2),
-        }
-
-    result.driver_importance = {
-        "EU ETS reform": [0.25, 0.40, 0.45, 0.55],
-        "Natural gas price": [0.30, 0.20, 0.10, 0.05],
-        "CBAM phase-in": [0.10, 0.15, 0.25, 0.35],
-        "Renewable energy auction": [0.15, 0.22, 0.18, 0.12],
-    }
-    result.backtest_accuracy = 0.65
-    return result

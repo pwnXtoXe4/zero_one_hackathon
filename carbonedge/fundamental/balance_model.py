@@ -108,22 +108,6 @@ class BalanceSignal:
     price_pressure: Optional[PricePressure] = None
     demand_pressure: Optional[DemandPressure] = None
 
-    @property
-    def is_shortage(self) -> bool:
-        return self.market_balance_mt < 0
-
-    @property
-    def display(self) -> str:
-        base = (
-            f"{self.date_key} | Cap={self.cap_mt:.0f}Mt "
-            f"Ems={self.verified_emissions_mt:.0f}Mt "
-            f"Balance={self.market_balance_mt:+.0f}Mt "
-            f"> {self.signal}"
-        )
-        if self.price_pressure:
-            base += f" | PP+={self.price_pressure.pp_plus:.2f} PP-={self.price_pressure.pp_minus:.2f}"
-        return base
-
 
 def compute_price_pressure(
     forecast_values: List[float],

@@ -64,10 +64,6 @@ class CapSchedule:
             "Post-2030 cap not yet legislated."
         )
 
-    def remaining_allowances(self, year: int) -> float:
-        """Cumulative allowances remaining from this year through 2030."""
-        return sum(self.cap_mt(y) for y in range(year, max(self.years) + 1))
-
     def annual_reduction_mt(self) -> float:
         """Average annual cap reduction (Mt/year) over the schedule."""
         years = sorted(self.years)

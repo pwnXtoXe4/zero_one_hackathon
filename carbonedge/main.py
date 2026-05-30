@@ -23,27 +23,20 @@ from .config import (
     CARBON_EXPOSURE,
     COMPANY_PROFILE,
     DATA_DIR,
-    EMISSION_SOURCES,
     FORECAST_TARGETS,
-    ReductionOption,
     load_timeseries,
 )
 from .logging_setup import configure_logging
-
-logger = logging.getLogger(__name__)
-from .fundamental.balance_model import FundamentalModel, BalanceSignal
+from .fundamental.balance_model import FundamentalModel
 from .fundamental.cap_schedule import build_cap_schedule
-from .fundamental.data_sources import load_ets_csv, load_monthly_prices, EtsData
-from .fundamental.driver_monitor import DriverMonitor, DriverState
-from .mac_curve import MACCurve, build_mac_curve, mac_summary
-from .decision_agent import EnhancedDecision, run_decision_agent
-
+from .fundamental.data_sources import load_ets_csv
+from .fundamental.driver_monitor import DriverMonitor
+from .mac_curve import build_mac_curve, mac_summary
+from .decision_agent import run_decision_agent
 from .adaptive import (
     ACCELERATED_ETS_REFORM,
     CBAM_ACCELERATION,
     ENERGY_PRICE_CRASH,
-    AdaptiveDelta,
-    ScenarioShift,
     recalculate_after_shift,
 )
 from .output import (
@@ -52,11 +45,12 @@ from .output import (
 )
 from .regime_detector import RegimeMonitor
 from .sybilion_client import (
-    ForecastResult,
     build_forecast_request,
     parse_forecast_response,
     validate_timeseries,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def load_ets_data() -> Dict[str, float]:
@@ -316,7 +310,6 @@ def run_carbonedge_with_forecast(
         mac_curve=mac,
         budget=COMPANY_PROFILE["annual_reduction_budget_eur"],
         current_ets_price=current_price,
-        cbam_tons=CARBON_EXPOSURE["cbam_exposed_imports_tons_co2e"],
         allowances_needed=CARBON_EXPOSURE["eu_ets_allowances_needed_annually"],
         regime_monitor=regime_monitor,
         historical_prices=prices_list,

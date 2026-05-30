@@ -17,7 +17,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Optional
 
-from ..fundamental.balance_model import FundamentalModel, BalanceSignal
+from ..fundamental.balance_model import FundamentalModel
 
 logger = logging.getLogger(__name__)
 

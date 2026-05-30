@@ -193,18 +193,6 @@ def _determine_timing(
     return "DEFER"
 
 
-def recalculate_mac(
-    mac_curve: MACCurve,
-    new_ets_price: float,
-    ets_forecast: Optional[Dict[int, float]] = None,
-) -> MACCurve:
-    """Rebuild MAC curve after a regulatory shift (e.g. new ETS price)."""
-    return build_mac_curve(
-        ets_price_forecast=ets_forecast,
-        current_ets_price=new_ets_price,
-    )
-
-
 def mac_summary(mac_curve: MACCurve) -> str:
     """Format the MAC curve as a readable table."""
     lines = [
