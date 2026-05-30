@@ -70,7 +70,7 @@ class SybilionWrapper:
     ) -> ForecastArtifacts:
         """Submit a forecast job, poll until settled, return artifacts."""
         if keywords is None:
-            keywords = select_keywords(focus="carbon_market", horizon=horizon)
+            keywords = select_keywords(target="eua_price", max_keywords=16)
 
         # Check cache first
         cache_key = self._cache_key(series, keywords, horizon)
@@ -113,7 +113,7 @@ class SybilionWrapper:
     ) -> dict:
         """Synchronous driver recommendations (no polling needed)."""
         if keywords is None:
-            keywords = select_keywords(focus="carbon_market")
+            keywords = select_keywords(target="eua_price", max_keywords=16)
         # For simplicity, this uses the same submit flow in mock mode
         # In live mode, would call POST /api/v1/drivers directly
         return {}
