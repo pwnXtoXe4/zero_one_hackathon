@@ -1,14 +1,20 @@
 # Carbon Backend API
 
 ## Install
+
+Install dependencies:
+```sh
 pip install -r requirements.txt
+```
 
 ## Environment
-Windows PowerShell:
-$env:SYBILION_API_TOKEN="your-token"
 
-macOS/Linux:
-export SYBILION_API_TOKEN="your-token"
+Create `.env` using template in `.env.example`
+```sh
+mv .env.example .env
+```
+
+Paste your `Sybilion API Key` and (optional) your `OpenAI API Key` into the required fields in `.env`.
 
 ## Run
 uvicorn src.api.main:app --reload
