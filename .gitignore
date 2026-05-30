@@ -3,3 +3,5 @@
 .mpc*
 .venv/
 .claude/
+__pycache__/
+*.pyc

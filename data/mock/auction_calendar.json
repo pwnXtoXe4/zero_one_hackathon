@@ -1,0 +1,42 @@
+[
+  {
+    "id": "cap3-2026-06-02",
+    "auction_type": "CAP3",
+    "auction_date": "2026-06-02",
+    "window": "09:00-11:00",
+    "volume": 29000,
+    "expected_clearing_price": 69.80
+  },
+  {
+    "id": "ger-2026-06-05",
+    "auction_type": "GERMANY",
+    "auction_date": "2026-06-05",
+    "window": "09:00-11:00",
+    "volume": 42000,
+    "expected_clearing_price": 70.10
+  },
+  {
+    "id": "cap3-2026-06-09",
+    "auction_type": "CAP3",
+    "auction_date": "2026-06-09",
+    "window": "09:00-11:00",
+    "volume": 29000,
+    "expected_clearing_price": 70.50
+  },
+  {
+    "id": "cap3-2026-06-11",
+    "auction_type": "CAP3",
+    "auction_date": "2026-06-11",
+    "window": "09:00-11:00",
+    "volume": 29000,
+    "expected_clearing_price": 70.80
+  },
+  {
+    "id": "pol-2026-06-10",
+    "auction_type": "POLAND",
+    "auction_date": "2026-06-10",
+    "window": "09:00-11:00",
+    "volume": 18500,
+    "expected_clearing_price": 70.30
+  }
+]

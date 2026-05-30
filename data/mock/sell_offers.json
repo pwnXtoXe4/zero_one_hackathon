@@ -1,0 +1,38 @@
+[
+  {
+    "id": "offer-1",
+    "seller_name": "NordCement GmbH",
+    "volume": 15000,
+    "price_per_eua": 69.90,
+    "valid_until": "2026-06-02T16:00:00",
+    "settlement_method": "OTC",
+    "counterparty_rating": 0.92
+  },
+  {
+    "id": "offer-2",
+    "seller_name": "GreenSteel AG",
+    "volume": 8000,
+    "price_per_eua": 69.30,
+    "valid_until": "2026-06-01T16:00:00",
+    "settlement_method": "OTC",
+    "counterparty_rating": 0.88
+  },
+  {
+    "id": "offer-3",
+    "seller_name": "Energie Broker Wien",
+    "volume": 30000,
+    "price_per_eua": 70.50,
+    "valid_until": "2026-06-05T12:00:00",
+    "settlement_method": "BROKER",
+    "counterparty_rating": 0.95
+  },
+  {
+    "id": "offer-4",
+    "seller_name": "AlpinePaper GmbH",
+    "volume": 25000,
+    "price_per_eua": 70.00,
+    "valid_until": "2026-06-10T17:00:00",
+    "settlement_method": "OTC",
+    "counterparty_rating": 0.85
+  }
+]

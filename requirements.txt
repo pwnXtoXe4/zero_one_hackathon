@@ -1,0 +1,16 @@
+# Sybilion API client
+sybilion
+
+# Core dependencies (all stdlib except these)
+scipy>=1.10.0
+
+# Optional: for meta-model stretch goal
+# scikit-learn>=1.3.0
+# xgboost>=2.0.0
+
+# Testing
+pytest>=8.0.0
+
+# Backend API layer
+fastapi
+uvicorn
