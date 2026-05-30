@@ -3,3 +3,10 @@
 .mpc*
 .venv/
 .claude/
+__pycache__/
+*.pyc
+data/
+sybilion/
+logs*.txt
+backtest_*.txt
+backtest_logs.txt
