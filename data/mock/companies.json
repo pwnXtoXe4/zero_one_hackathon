@@ -1,0 +1,29 @@
+[
+  {
+    "id": "greenchem",
+    "name": "GreenChem GmbH",
+    "sector": "Chemicals",
+    "country": "AT",
+    "forecast_emissions": 485000,
+    "free_allocation": 400000,
+    "current_allowances": 20000
+  },
+  {
+    "id": "alpine_paper",
+    "name": "AlpinePaper GmbH",
+    "sector": "Paper",
+    "country": "AT",
+    "forecast_emissions": 320000,
+    "free_allocation": 350000,
+    "current_allowances": 15000
+  },
+  {
+    "id": "voest_steel",
+    "name": "Voest Alpine Stahl AG",
+    "sector": "Steel",
+    "country": "AT",
+    "forecast_emissions": 1200000,
+    "free_allocation": 900000,
+    "current_allowances": 150000
+  }
+]
