@@ -326,7 +326,7 @@ Company type: {company_type}"""
 
 def generate_keywords_llm(
     company_type: str,
-    provider: str = "openai",
+    provider: str = "alibaba",
     api_key: Optional[str] = None,
     model: Optional[str] = None,
 ) -> list[str]:
@@ -335,9 +335,11 @@ def generate_keywords_llm(
     Args:
         company_type: Free-text description of the company type
             (e.g. "Textile Manufacturing", "Food Processing").
-        provider: LLM provider — "openai" or "anthropic".
-        api_key: API key. Falls back to OPENAI_API_KEY or ANTHROPIC_API_KEY env var.
-        model: Model name. Defaults to gpt-4o-mini (OpenAI) or claude-sonnet-4-6 (Anthropic).
+        provider: LLM provider — "alibaba", "openai", or "anthropic".
+        api_key: API key. Falls back to ALIBABA_API_KEY, OPENAI_API_KEY,
+            or ANTHROPIC_API_KEY env var.
+        model: Model name. Defaults to qwen-plus (Alibaba), gpt-4o-mini
+            (OpenAI), or claude-sonnet-4-6 (Anthropic).
 
     Returns:
         List of 9 keyword strings.
@@ -346,8 +348,14 @@ def generate_keywords_llm(
         ValueError: If no API key is available or response is invalid.
         ConnectionError: If the LLM API call fails.
     """
+    if provider == "alibaba":
+        key = api_key or os.environ.get("ALIBABA_API_KEY") or os.environ.get("ALIBABA_API_TOKEN")
+        if not key:
+            raise ValueError("No Alibaba API key. Set ALIBABA_API_KEY or pass api_key=")
+        return _generate_alibaba(company_type, key, model or "qwen-plus")
+
     if provider == "openai":
-        key = api_key or os.environ.get("OPENAI_API_KEY")
+        key = api_key or os.environ.get("OPENAI_API_KEY") or os.environ.get("OPENAI_API_TOKEN")
         if not key:
             raise ValueError("No OpenAI API key. Set OPENAI_API_KEY or pass api_key=")
         return _generate_openai(company_type, key, model or "gpt-4o-mini")
@@ -358,15 +366,32 @@ def generate_keywords_llm(
             raise ValueError("No Anthropic API key. Set ANTHROPIC_API_KEY or pass api_key=")
         return _generate_anthropic(company_type, key, model or "claude-sonnet-4-6")
 
-    raise ValueError(f"Unknown provider: {provider}. Use 'openai' or 'anthropic'.")
+    raise ValueError(f"Unknown provider: {provider}. Use 'alibaba', 'openai', or 'anthropic'.")
 
 
 def _generate_openai(company_type: str, api_key: str, model: str) -> list[str]:
     """Call OpenAI API to generate keywords."""
+    return _generate_openai_compat(
+        company_type, api_key, model,
+        url="https://api.openai.com/v1/chat/completions",
+    )
+
+
+def _generate_alibaba(company_type: str, api_key: str, model: str) -> list[str]:
+    """Call Alibaba DashScope (Qwen) via OpenAI-compatible endpoint."""
+    return _generate_openai_compat(
+        company_type, api_key, model,
+        url="https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions",
+    )
+
+
+def _generate_openai_compat(
+    company_type: str, api_key: str, model: str, url: str
+) -> list[str]:
+    """Call any OpenAI-compatible API to generate keywords."""
     import urllib.request
     import urllib.error
 
-    url = "https://api.openai.com/v1/chat/completions"
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {api_key}",
