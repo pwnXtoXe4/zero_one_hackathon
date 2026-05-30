@@ -23,6 +23,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
+import numpy as np
+
 from .config import (
     CARBON_EXPOSURE,
     COMPANY_PROFILE,
@@ -266,191 +268,80 @@ def make_procurement_decision(
 
     confidence_mult = regime.multiplier
     volatility_mult = epu.volatility_multiplier if epu else 1.0
-    front_load = driver_bias.bias
-    logger.debug(
-        "front_load init from driver_bias: %+.3f (signal=%s)",
-        front_load, driver_bias.signal,
-    )
 
-    # Structural BUY/DEFER signal (Bastianin et al. 2024):
-    #   BUY  (market entering shortage) → tilt purchases forward
-    #   DEFER (structural surplus)       → defer purchases
-    # max/min override: the strongest directional signal wins. In a market with
-    # a confident short-horizon Sybilion forecast, the trend signal often beats
-    # the structural fundamentals on a 1-6 month window.
+    # ---- Forecast adjustment from enhancement layers ----
+    # Each layer's signal is folded into the inputs the CVaR optimizer sees,
+    # instead of fighting over a single scalar `front_load_bias` via min/max.
+    #
+    #   regime.multiplier      → sigma scaling (uncertainty up = wider bands)
+    #   epu.volatility_mult    → sigma scaling (EPU up = wider bands)
+    #   driver_bias.bias       → mean shift   (BULLISH = forecast biased up)
+    #   structural.signal      → mean shift   (BUY = structural shortage premium)
+    #
+    # The mean shifts are intentionally small — the Sybilion forecast is the
+    # primary signal; enhancement layers nudge it. Larger nudges in the same
+    # direction compound; opposing nudges partially cancel. The CVaR optimizer
+    # then chooses the allocation by minimising (1−λ)·E[cost] + λ·CVaR.
+    driver_shift = driver_bias.bias * 0.05   # ±0.30 driver bias → ±1.5% mean shift
+    structural_shift = 0.0
     if structural is not None:
         if structural.signal == "BUY":
-            structural_tilt = 0.15 + 0.25 * max(0.0, structural.tightening_score)
-            new_fl = max(front_load, structural_tilt)
-            if new_fl != front_load:
-                logger.info(
-                    "Structural BUY tilt: front_load %+.2f -> %+.2f (tightening=%.2f)",
-                    front_load, new_fl, structural.tightening_score,
-                )
-            front_load = new_fl
+            structural_shift = 0.02 + 0.03 * max(0.0, structural.tightening_score)
         elif structural.signal == "DEFER":
-            structural_tilt = -0.15 - 0.15 * max(0.0, -structural.tightening_score)
-            new_fl = min(front_load, structural_tilt)
-            if new_fl != front_load:
-                logger.info(
-                    "Structural DEFER tilt: front_load %+.2f -> %+.2f (tightening=%.2f)",
-                    front_load, new_fl, structural.tightening_score,
-                )
-            front_load = new_fl
-
-    # Trend-aware tilt: GREEN regime + clear trend → act decisively.
-    # Confidence is weighted by the NEAR-TERM (h=1) band — short-horizon
-    # forecast accuracy is what makes procurement timing actionable. The
-    # average band is dragged up by wide h=6+ bands and underweights confident
-    # short-horizon signals.
-    if regime.level == "GREEN" and forecast.current_value > 0 and forecast.forecast_points:
-        last_h = max(forecast.forecast_points.keys())
-        first_h = min(forecast.forecast_points.keys())
-        ratio = forecast.forecast_points[last_h]["value"] / forecast.current_value
-        first_fp = forecast.forecast_points[first_h]
-        first_value = first_fp.get("value", forecast.current_value)
-        if first_value > 0:
-            first_band = (first_fp.get("high", first_value) - first_fp.get("low", first_value)) / first_value
-        else:
-            first_band = 1.0
-        confidence = max(0.30, 1.0 - first_band / 0.30)
-        if forecast.trend == "UP":
-            # 5% rise -> 0.20, 20% -> 0.55, 40%+ -> ~1.0 (clipped)
-            raw_magnitude = min(1.0, 0.10 + (ratio - 1.0) * 2.5)
-            trend_tilt = raw_magnitude * confidence
-            new_fl = max(front_load, trend_tilt)
-            if new_fl != front_load:
-                logger.info(
-                    "GREEN+UP trend tilt: front_load %+.2f -> %+.2f (ratio=%.3f h1_band=%.3f conf=%.2f)",
-                    front_load, new_fl, ratio, first_band, confidence,
-                )
-            front_load = new_fl
-        elif forecast.trend == "DOWN":
-            raw_magnitude = max(-1.0, -0.10 - (1.0 - ratio) * 2.5)
-            trend_tilt = raw_magnitude * confidence
-            new_fl = min(front_load, trend_tilt)
-            if new_fl != front_load:
-                logger.info(
-                    "GREEN+DOWN trend tilt: front_load %+.2f -> %+.2f (ratio=%.3f h1_band=%.3f conf=%.2f)",
-                    front_load, new_fl, ratio, first_band, confidence,
-                )
-            front_load = new_fl
-
-    # EPU spike: accelerate purchases (Dai et al. 2020 — EPU -> volatility).
-    # Runs AFTER trend, so a CRISIS-level spike can override a DOWN trend.
-    if epu and epu.spike and front_load < 0.2:
-        logger.info(
-            "EPU spike override: front_load %+.2f -> 0.20 (z=%.2f)",
-            front_load, epu.z_score,
-        )
-        front_load = max(front_load, 0.2)
-
-    # EPU CRISIS: bands already widened via volatility_mult; cap at 0.50 (not 0.35)
-    # so a confident UP forecast can still drive heavy front-loading.
-    if epu and epu.level == "CRISIS":
-        if front_load > 0.50:
-            logger.info("EPU CRISIS cap: front_load %+.2f -> 0.50", front_load)
-        front_load = min(front_load, 0.50)
-    if regime.level == "RED":
-        logger.warning(
-            "Regime RED override: FREEZE (front_load %+.2f -> 0, 25%% lump at spot)",
-            front_load,
-        )
-        front_load = 0.0
-        if regime.level == "RED":
-            # Minimal buy only
-            return ProcurementPlan(
-                total_tons=allowances_needed,
-                windows=[PurchaseWindow(
-                    horizon=1, label="NOW", tons=int(allowances_needed * 0.25),
-                    expected_price=current_price,
-                    price_low=current_price * 0.8,
-                    price_high=current_price * 1.5,
-                    cost_expected=int(allowances_needed * 0.25) * current_price,
-                    cost_worst_case=int(allowances_needed * 0.25) * current_price * 1.5,
-                )],
-                total_cost_expected=int(allowances_needed * 0.25) * current_price,
-                total_cost_worst_case=int(allowances_needed * 0.25) * current_price * 1.5,
-                cost_if_all_now=allowances_needed * current_price,
-                expected_savings=allowances_needed * current_price - int(allowances_needed * 0.25) * current_price,
-                worst_case_savings=allowances_needed * current_price - int(allowances_needed * 0.25) * current_price * 1.5,
-                strategy="FREEZE",
-                reasoning="REGIME RED: Minimal purchase to cover compliance. Freeze remaining until regime clears.",
-            )
-
-    # High-conviction LUMP_SUM shortcut.
-    # When the agent's combined signal is strongly directional with reasonable
-    # confidence, the CVaR optimizer's fixed-fraction allocation under-reacts.
-    # Bypass it and lump-sum at the favorable end.
-    #   front_load >= +0.55 → buy all at NOW (price expected to rise sharply)
-    #   front_load <= -0.40 → buy all at the latest window (price expected to fall)
-    # Conditions: GREEN regime only; RED is handled above with FREEZE.
-    if regime.level == "GREEN" and front_load >= 0.55:
-        logger.info(
-            "LUMP_SUM shortcut: front_load=%+.2f -> 100%% at NOW (forecast %s, band=%.3f)",
-            front_load, forecast.trend, forecast.band_width_ratio,
-        )
-        latest = max(forecast.forecast_points.keys())
-        future_mu = forecast_mean.get(latest, current_price)
-        sigma_now = forecast_sigma.get(min(forecast_mean), current_price * 0.1)
-        return ProcurementPlan(
-            total_tons=allowances_needed,
-            windows=[PurchaseWindow(
-                horizon=1, label="NOW", tons=allowances_needed,
-                expected_price=current_price,
-                price_low=max(1.0, current_price - 2 * sigma_now),
-                price_high=current_price + 2 * sigma_now,
-                cost_expected=allowances_needed * current_price,
-                cost_worst_case=allowances_needed * (current_price + 2 * sigma_now),
-            )],
-            total_cost_expected=allowances_needed * current_price,
-            total_cost_worst_case=allowances_needed * (current_price + 2 * sigma_now),
-            cost_if_all_now=allowances_needed * current_price,
-            expected_savings=allowances_needed * (future_mu - current_price),
-            worst_case_savings=0.0,
-            strategy="LUMP_SUM",
-            reasoning=(
-                f"High-conviction UP: forecast {forecast.trend}, "
-                f"front_load={front_load:+.2f}, band={forecast.band_width_ratio:.2f}. "
-                f"Lump-sum at spot EUR{current_price:.0f} avoids paying forward EUR{future_mu:.0f}."
-            ),
-        )
-    if regime.level == "GREEN" and front_load <= -0.40:
-        latest = max(forecast.forecast_points.keys())
-        future_mu = forecast_mean.get(latest, current_price)
-        sigma_h = forecast_sigma.get(latest, current_price * 0.1)
-        logger.info(
-            "LUMP_SUM shortcut: front_load=%+.2f -> 100%% at h=%d (forecast %s, band=%.3f)",
-            front_load, latest, forecast.trend, forecast.band_width_ratio,
-        )
-        label = {3: "M3", 6: "M6", 9: "M9", 12: "M12"}.get(latest, f"M{latest}")
-        return ProcurementPlan(
-            total_tons=allowances_needed,
-            windows=[PurchaseWindow(
-                horizon=latest, label=label, tons=allowances_needed,
-                expected_price=future_mu,
-                price_low=max(1.0, future_mu - 2 * sigma_h),
-                price_high=future_mu + 2 * sigma_h,
-                cost_expected=allowances_needed * future_mu,
-                cost_worst_case=allowances_needed * (future_mu + 2 * sigma_h),
-            )],
-            total_cost_expected=allowances_needed * future_mu,
-            total_cost_worst_case=allowances_needed * (future_mu + 2 * sigma_h),
-            cost_if_all_now=allowances_needed * current_price,
-            expected_savings=allowances_needed * (current_price - future_mu),
-            worst_case_savings=allowances_needed * (current_price - (future_mu + 2 * sigma_h)),
-            strategy="LUMP_BACK",
-            reasoning=(
-                f"High-conviction DOWN: forecast {forecast.trend}, "
-                f"front_load={front_load:+.2f}, band={forecast.band_width_ratio:.2f}. "
-                f"Defer all to h={latest} at forecast EUR{future_mu:.0f} vs spot EUR{current_price:.0f}."
-            ),
-        )
-
-    # Run CVaR optimizer
+            structural_shift = -0.02 - 0.03 * max(0.0, -structural.tightening_score)
+    mean_shift = driver_shift + structural_shift
     logger.info(
-        "Running CVaR optimizer: windows=%s, conf=%.2fx, vol=%.2fx, front_load=%+.2f",
-        purchase_windows, confidence_mult, volatility_mult, front_load,
+        "Forecast mean shift: driver=%+.3f + structural=%+.3f -> %+.3f (applied as multiplier 1+shift)",
+        driver_shift, structural_shift, mean_shift,
+    )
+
+    # Apply the mean shift to the forecast going into the optimizer
+    shifted_mean = {h: v * (1.0 + mean_shift) for h, v in forecast_mean.items()}
+
+    # Use the driver bias as a soft prior for the optimizer's initial guess.
+    # This shortens search time and helps in flat-forecast cases where the
+    # CVaR objective has multiple near-optimal solutions.
+    front_load = float(np.clip(driver_bias.bias + 0.5 * structural_shift, -0.5, 0.5))
+
+    # EPU spike: nudge mean upward (lock in before vol surge) per Dai et al.
+    if epu and epu.spike:
+        logger.info("EPU spike: shifting forecast mean +2%% (z=%.2f)", epu.z_score)
+        shifted_mean = {h: v * 1.02 for h, v in shifted_mean.items()}
+
+    # Regime RED: structural break → emergency freeze, skip optimization.
+    if regime.level == "RED":
+        logger.warning("Regime RED -> FREEZE (25%% lump at spot)")
+        return ProcurementPlan(
+            total_tons=allowances_needed,
+            windows=[PurchaseWindow(
+                horizon=1, label="NOW", tons=int(allowances_needed * 0.25),
+                expected_price=current_price,
+                price_low=current_price * 0.8,
+                price_high=current_price * 1.5,
+                cost_expected=int(allowances_needed * 0.25) * current_price,
+                cost_worst_case=int(allowances_needed * 0.25) * current_price * 1.5,
+            )],
+            total_cost_expected=int(allowances_needed * 0.25) * current_price,
+            total_cost_worst_case=int(allowances_needed * 0.25) * current_price * 1.5,
+            cost_if_all_now=allowances_needed * current_price,
+            expected_savings=allowances_needed * current_price - int(allowances_needed * 0.25) * current_price,
+            worst_case_savings=allowances_needed * current_price - int(allowances_needed * 0.25) * current_price * 1.5,
+            strategy="FREEZE",
+            reasoning="REGIME RED: Minimal purchase to cover compliance. Freeze remaining until regime clears.",
+        )
+
+    # Adaptive risk aversion: λ scales with forecast uncertainty.
+    # Narrow bands -> trust the forecast direction (low λ).
+    # Wide bands -> hedge with spot certainty (high λ).
+    risk_lambda = float(np.clip(0.05 + 0.30 * forecast.band_width_ratio / 0.5, 0.05, 0.50))
+
+    # Run CVaR optimizer (scipy SLSQP over allocation fractions).
+    forecast_mean = shifted_mean
+    logger.info(
+        "Running CVaR optimizer: windows=%s, conf=%.2fx, vol=%.2fx, prior_bias=%+.2f, "
+        "mean_shift=%+.2f%%, lambda=%.2f (band=%.3f)",
+        purchase_windows, confidence_mult, volatility_mult, front_load, mean_shift * 100,
+        risk_lambda, forecast.band_width_ratio,
     )
     try:
         plan = optimize_procurement(
@@ -462,6 +353,7 @@ def make_procurement_decision(
             confidence_multiplier=confidence_mult,
             volatility_multiplier=volatility_mult,
             front_load_bias=front_load,
+            risk_lambda=risk_lambda,
         )
         logger.info(
             "Procurement plan: %s, %d tons, EUR%.0f expected, EUR%+.0f vs spot",

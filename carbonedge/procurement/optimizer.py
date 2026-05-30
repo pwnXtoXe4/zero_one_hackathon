@@ -22,6 +22,12 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
+try:
+    from scipy.optimize import minimize
+    _HAVE_SCIPY = True
+except ImportError:  # pragma: no cover - exercised only when scipy missing
+    _HAVE_SCIPY = False
+
 logger = logging.getLogger(__name__)
 
 DEFAULT_MONTE_CARLO_PATHS = 10_000
@@ -161,66 +167,140 @@ def optimize_procurement(
         adjusted_sigma[h] = base_sigma * confidence_multiplier * volatility_multiplier
     adjusted_mu = {h: forecast_mean[h] for h in purchase_windows}
 
-    # Generate price paths
+    # ---- Generate correlated MC price paths for the purchase horizons ----
     rng = np.random.default_rng(42)
-    path_costs = np.zeros((n_paths, len(purchase_windows)))
+    horizon_prices = np.zeros((n_paths, len(purchase_windows)))
     for p in range(n_paths):
         path = _sample_price_path(purchase_windows, adjusted_mu, adjusted_sigma, rng=rng)
         for j, h in enumerate(purchase_windows):
-            path_costs[p, j] = path[h]
+            horizon_prices[p, j] = path[h]
 
-    # Base allocation: equal across windows
-    n_windows = len(purchase_windows)
-    base_fraction = 1.0 / n_windows
+    # ---- Add spot-at-NOW as an additional choice with no uncertainty ----
+    # This lets the optimizer naturally pick "buy all now" when the expected
+    # forward cost exceeds the spot, rather than forcing it to spread.
+    spot_column = np.full((n_paths, 1), float(current_price))
+    all_prices = np.hstack([spot_column, horizon_prices])
+    all_horizons = [0] + purchase_windows  # 0 == buy now
+    n_choices = len(all_horizons)
 
-    # Apply front-load bias: shift allocation earlier.
-    # For |bias| >= 0.2, use quadratic weighting for stronger effect.
-    fractions = np.ones(n_windows) * base_fraction
-    if abs(front_load_bias) >= 0.2:
-        raw = np.zeros(n_windows)
-        if front_load_bias > 0:
-            for i in range(n_windows):
-                weight = (n_windows - i) ** (1.0 + front_load_bias * 2)
-                raw[i] = weight
-        else:
-            for i in range(n_windows):
-                weight = (i + 1) ** (1.0 - front_load_bias * 2)
-                raw[i] = weight
-        fractions = raw / raw.sum()
-    elif front_load_bias > 0:
-        for i in range(n_windows):
-            fractions[i] = base_fraction + front_load_bias * (n_windows - 1 - i) / n_windows
-        fractions = fractions / fractions.sum()
-    elif front_load_bias < 0:
-        for i in range(n_windows):
-            fractions[i] = base_fraction + front_load_bias * i / n_windows
-        fractions = fractions / fractions.sum()
+    # ---- CVaR objective ----
+    cvar_cutoff = int(n_paths * cvar_alpha)
+    def objective(fractions: np.ndarray) -> float:
+        costs = all_prices @ fractions * total_tons
+        e_cost = float(np.mean(costs))
+        sorted_c = np.sort(costs)
+        cvar = float(np.mean(sorted_c[cvar_cutoff:]))
+        return (1.0 - risk_lambda) * e_cost + risk_lambda * cvar
 
+    # ---- Initial guess + soft bias toward front_load preference ----
+    # The bias comes from the enhancement layer; it's a prior, not a hard rule.
+    # An exponential weighting on horizon distance, signed by the bias, gives
+    # the optimizer a sensible starting point in a high-dim search space.
+    horizon_array = np.array(all_horizons, dtype=float)
+    if abs(front_load_bias) > 1e-6:
+        weights = np.exp(-front_load_bias * horizon_array / max(horizon_array.max(), 1.0))
+        x0 = weights / weights.sum()
+    else:
+        x0 = np.ones(n_choices) / n_choices
+
+    # ---- Constrained optimization with multi-start ----
+    # The CVaR objective is piecewise-linear (sorted-mean of MC paths) so
+    # gradient-based methods get stuck. We evaluate a small set of structural
+    # candidates (each lump-sum vertex, equal split, the front-loaded prior)
+    # and use the best as the starting point for scipy.SLSQP refinement.
+    candidates: List[np.ndarray] = []
+    # All-vertex candidates: one-hot at each choice (LUMP_SUM at each horizon)
+    for i in range(n_choices):
+        v = np.zeros(n_choices)
+        v[i] = 1.0
+        candidates.append(v)
+    # Equal-split
+    candidates.append(np.ones(n_choices) / n_choices)
+    # Front-loaded prior
+    candidates.append(x0)
+
+    best_obj = float("inf")
+    best_sol = x0
+    for c in candidates:
+        val = objective(c)
+        if val < best_obj:
+            best_obj = val
+            best_sol = c
     logger.debug(
-        "optimize_procurement fractions: %s (sum=%.3f, n_windows=%d)",
-        ", ".join(f"{f:.3f}" for f in fractions),
-        float(fractions.sum()), n_windows,
+        "Best candidate objective=%.0f at fractions=%s",
+        best_obj, ", ".join(f"{f:.2f}" for f in best_sol),
     )
 
-    total_costs = path_costs @ fractions * total_tons
-    expected_cost = float(np.mean(total_costs))
-    sorted_costs = np.sort(total_costs)
-    cvar_cutoff = int(n_paths * cvar_alpha)
+    solver_status = "best-candidate"
+    if _HAVE_SCIPY:
+        constraints = [{"type": "eq", "fun": lambda f: float(np.sum(f) - 1.0)}]
+        bounds = [(0.0, 1.0)] * n_choices
+        try:
+            result = minimize(
+                objective, best_sol, method="SLSQP",
+                bounds=bounds, constraints=constraints,
+                options={"ftol": 1e-7, "maxiter": 300},
+            )
+            if result.success and abs(result.x.sum() - 1.0) < 0.05:
+                refined = np.clip(result.x, 0.0, 1.0)
+                refined = refined / refined.sum()
+                if objective(refined) < best_obj:
+                    best_sol = refined
+                    best_obj = objective(refined)
+                    solver_status = "best-candidate + SLSQP refinement"
+                else:
+                    solver_status = "best-candidate (SLSQP did not improve)"
+            else:
+                solver_status = f"best-candidate (SLSQP fail: {result.message})"
+        except (ValueError, RuntimeError) as exc:  # pragma: no cover
+            solver_status = f"best-candidate (scipy raised {exc!r})"
+    else:
+        solver_status = "best-candidate (scipy unavailable)"
+    solution = best_sol
+
+    # ---- Apply the solution: spot choice + horizon fractions ----
+    spot_fraction = float(solution[0])
+    horizon_fractions = np.array(solution[1:], dtype=float)
+    logger.debug(
+        "CVaR optimizer (%s): spot=%.3f, horizons=[%s]",
+        solver_status, spot_fraction,
+        ", ".join(f"h{h}:{f:.3f}" for h, f in zip(purchase_windows, horizon_fractions)),
+    )
+
+    # Compute realized E[cost] and CVaR on the chosen solution
+    realized_costs = all_prices @ solution * total_tons
+    expected_cost = float(np.mean(realized_costs))
+    sorted_costs = np.sort(realized_costs)
     cvar_cost = float(np.mean(sorted_costs[cvar_cutoff:]))
     logger.debug(
-        "optimize_procurement MC: E[cost]=%.0f, CVaR%.0f=%.0f, worst=%.0f, cutoff=%d/%d",
+        "CVaR optimizer realized: E[cost]=%.0f, CVaR%.0f=%.0f, worst=%.0f",
         expected_cost, cvar_alpha * 100, cvar_cost,
-        float(np.max(total_costs)), cvar_cutoff, n_paths,
+        float(np.max(realized_costs)),
     )
 
-    # Baseline: buy all now
+    # Baseline: buy all now at spot
     cost_all_now = total_tons * current_price
 
-    # Build plan
+    # ---- Build per-event windows including the spot choice when picked ----
     window_labels = {1: "NOW", 2: "M2", 3: "M3", 4: "M4", 6: "M6", 9: "M9", 12: "M12"}
-    windows = []
+    windows: List[PurchaseWindow] = []
+    if spot_fraction > 0.005:
+        qty = int(round(total_tons * spot_fraction))
+        windows.append(PurchaseWindow(
+            horizon=1,  # spot is "buy this month"
+            label="SPOT",
+            tons=qty,
+            expected_price=float(current_price),
+            price_low=float(current_price),
+            price_high=float(current_price),
+            cost_expected=qty * float(current_price),
+            cost_worst_case=qty * float(current_price),
+        ))
     for i, h in enumerate(purchase_windows):
-        qty = int(total_tons * fractions[i])
+        frac = float(horizon_fractions[i])
+        if frac < 0.005:  # skip dust allocations
+            continue
+        qty = int(round(total_tons * frac))
         mu_h = adjusted_mu[h]
         sig_h = adjusted_sigma[h]
         windows.append(PurchaseWindow(
@@ -234,45 +314,63 @@ def optimize_procurement(
             cost_worst_case=qty * (mu_h + 2 * sig_h),
         ))
 
-    # Adjust last window to make total exact
+    # Reconcile rounding: any leftover tons go to the largest existing window
+    if not windows:
+        # All allocation rounded away — emergency LUMP_SUM at spot.
+        windows.append(PurchaseWindow(
+            horizon=1, label="SPOT", tons=total_tons,
+            expected_price=float(current_price),
+            price_low=float(current_price), price_high=float(current_price),
+            cost_expected=total_tons * float(current_price),
+            cost_worst_case=total_tons * float(current_price),
+        ))
     allocated = sum(w.tons for w in windows)
-    if allocated != total_tons:
-        diff = total_tons - allocated
-        windows[-1].tons += diff
-        windows[-1].cost_expected = windows[-1].tons * windows[-1].expected_price
-        sig_last = adjusted_sigma[purchase_windows[-1]]
-        windows[-1].price_low = max(1.0, windows[-1].expected_price - 2 * sig_last)
-        windows[-1].price_high = windows[-1].expected_price + 2 * sig_last
-        windows[-1].cost_worst_case = windows[-1].tons * windows[-1].price_high
+    diff = total_tons - allocated
+    if diff != 0:
+        anchor = max(windows, key=lambda w: w.tons)
+        anchor.tons += diff
+        anchor.cost_expected = anchor.tons * anchor.expected_price
+        anchor.cost_worst_case = anchor.tons * anchor.price_high
 
     expected_savings = cost_all_now - expected_cost
-    worst_case_cost = float(np.max(total_costs))
+    worst_case_cost = float(np.max(realized_costs))
     worst_case_savings = cost_all_now - worst_case_cost
 
-    # Strategy label based on weighted-average horizon
-    avg_horizon = sum(f * h for f, h in zip(fractions, purchase_windows))
-    midpoint = (purchase_windows[0] + purchase_windows[-1]) / 2
-    if avg_horizon < midpoint * 0.67:
+    # ---- Strategy label from realized allocation across horizons ----
+    # SPOT is treated as horizon=0 for centroid math; LUMP_SUM names extreme
+    # concentration regardless of which end.
+    centroid_num = spot_fraction * 0 + sum(
+        f * h for f, h in zip(horizon_fractions, purchase_windows)
+    )
+    centroid_den = spot_fraction + float(horizon_fractions.sum())
+    centroid = centroid_num / centroid_den if centroid_den > 0 else 0.0
+    max_frac = max([spot_fraction] + [float(f) for f in horizon_fractions])
+    midpoint = (0 + purchase_windows[-1]) / 2
+    if max_frac > 0.85:
+        strategy = "LUMP_SUM" if centroid <= midpoint else "LUMP_BACK"
+    elif centroid < midpoint * 0.67:
         strategy = "FRONT_LOAD"
-    elif avg_horizon > midpoint * 1.33:
+    elif centroid > midpoint * 1.33:
         strategy = "BACK_LOAD"
     else:
         strategy = "BALANCED"
     logger.debug(
-        "optimize_procurement strategy=%s (avg_h=%.2f, midpoint=%.2f)",
-        strategy, avg_horizon, midpoint,
+        "Strategy=%s (centroid=%.2f midpoint=%.2f max_frac=%.2f)",
+        strategy, centroid, midpoint, max_frac,
     )
 
     # Reasoning
     parts = []
+    if spot_fraction > 0.3:
+        parts.append(f"CVaR optimum allocates {spot_fraction*100:.0f}% at spot")
     if confidence_multiplier > 1.0:
         parts.append(f"Regime uncertain: bands widened {confidence_multiplier:.1f}x")
     if volatility_multiplier > 1.0:
         parts.append(f"EPU elevated: volatility amplified {volatility_multiplier:.1f}x")
     if front_load_bias > 0.1:
-        parts.append("Drivers bullish: front-loading")
+        parts.append("Drivers bullish: front-loading prior")
     elif front_load_bias < -0.1:
-        parts.append("Drivers bearish: back-loading")
+        parts.append("Drivers bearish: back-loading prior")
     if not parts:
         parts.append("Standard allocation based on Sybilion forecast bands")
 

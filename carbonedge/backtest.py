@@ -157,14 +157,26 @@ def _load_driver_importance() -> Dict[str, List[float]]:
 
 @dataclass
 class BacktestWindow:
-    """Result of one backtest window."""
+    """Result of one backtest window — all costs are REALIZED (using actual
+    future prices at each window's horizon), not forecast-implied."""
     evaluation_date: str           # YYYY-MM-DD
     spot_price: float
     allowances_needed: int
     procurement_strategy: str
+
+    # Forecast-implied figures (what the agent thought it would pay)
     total_cost_expected: float
-    cost_if_all_now: float
+
+    # Realized figures (what the agent and baselines actually paid given the
+    # actual prices that materialized at each horizon)
+    realized_cost_agent: float
+    realized_cost_spot: float
+    realized_cost_equal_thirds: Optional[float]
+
+    # Convenience savings vs each baseline (positive = agent paid less)
     savings_vs_spot: float
+    savings_vs_equal_thirds: Optional[float]
+
     regime_level: str
     epu_level: str
     epu_value: float
@@ -174,10 +186,26 @@ class BacktestWindow:
 
 
 @dataclass
+class StatisticalSummary:
+    """Paired t-test + 95% CI on per-window savings against one baseline."""
+    baseline_name: str
+    n: int
+    mean_savings: float
+    std_savings: float
+    se_savings: float
+    t_statistic: float
+    p_value: float
+    ci95_low: float
+    ci95_high: float
+
+
+@dataclass
 class BacktestResult:
     """Aggregate backtest results across all windows."""
     windows: List[BacktestWindow] = field(default_factory=list)
     total_windows: int = 0
+
+    # Spot-baseline metrics (legacy)
     windows_won: int = 0            # procurement cheaper than spot
     windows_lost: int = 0           # procurement more expensive than spot
     win_rate: float = 0.0
@@ -187,6 +215,11 @@ class BacktestResult:
     max_loss_eur: float = 0.0
     strategy_counts: Dict[str, int] = field(default_factory=dict)
     regime_breakdown: Dict[str, int] = field(default_factory=dict)
+
+    # Statistical comparison vs each baseline
+    stats_vs_spot: Optional[StatisticalSummary] = None
+    stats_vs_equal_thirds: Optional[StatisticalSummary] = None
+    forecast_mode: str = "naive"    # 'naive' (out-of-sample) or 'oracle'
 
 
 def generate_mock_forecast_for_date(
@@ -250,6 +283,110 @@ def _build_regime_monitor(prices: List[float]) -> RegimeMonitor:
     return monitor
 
 
+def _realized_prices_by_horizon(
+    sorted_dates: List[str],
+    prices: Dict[str, float],
+    eval_idx: int,
+    horizons: List[int],
+) -> Dict[int, float]:
+    """Return {h: realized price at t+h} for the given horizons.
+
+    Missing horizons (beyond the dataset) are omitted from the dict.
+    """
+    out: Dict[int, float] = {}
+    for h in horizons:
+        target_idx = eval_idx + h
+        if target_idx < len(sorted_dates):
+            out[h] = float(prices[sorted_dates[target_idx]])
+    return out
+
+
+def _realized_cost_for_plan(
+    plan: "ProcurementPlan",
+    spot_price: float,
+    realized_by_h: Dict[int, float],
+) -> float:
+    """Compute what the agent actually paid using realized prices.
+
+    Each PurchaseWindow knows its horizon; a "SPOT" window is paid at the
+    spot price (today, no horizon shift). Other windows pay the realized
+    price at their horizon. When a horizon is beyond available data the
+    nearest-available realized price is used; this only matters near the
+    end of the price series and is logged.
+    """
+    total = 0.0
+    available_h = sorted(realized_by_h)
+    for w in plan.windows:
+        if w.label == "SPOT":
+            actual = float(spot_price)
+        elif w.horizon in realized_by_h:
+            actual = float(realized_by_h[w.horizon])
+        elif available_h:
+            nearest = min(available_h, key=lambda h: abs(h - w.horizon))
+            actual = float(realized_by_h[nearest])
+            logger.debug(
+                "_realized_cost_for_plan: h=%d not in realized; using nearest h=%d (price=%.2f)",
+                w.horizon, nearest, actual,
+            )
+        else:
+            actual = float(spot_price)  # absolute fallback
+        total += int(w.tons) * actual
+    return total
+
+
+def _paired_stats(
+    agent_costs: List[float],
+    baseline_costs: List[float],
+    baseline_name: str,
+) -> StatisticalSummary:
+    """Paired t-test + 95% CI on per-window savings (baseline - agent)."""
+    a = np.asarray(agent_costs, dtype=float)
+    b = np.asarray(baseline_costs, dtype=float)
+    savings = b - a
+    n = int(len(savings))
+    mean = float(np.mean(savings))
+    if n > 1:
+        std = float(np.std(savings, ddof=1))
+        se = std / float(np.sqrt(n))
+    else:
+        std = 0.0
+        se = 0.0
+
+    # Paired t-test; SciPy if available, otherwise compute manually.
+    try:
+        from scipy.stats import ttest_rel
+        t_stat, p_value = ttest_rel(b, a)
+        t_stat = float(t_stat)
+        p_value = float(p_value)
+    except ImportError:  # pragma: no cover
+        if se > 0:
+            t_stat = mean / se
+            # No scipy -> can't compute p-value cleanly. Leave NaN.
+            p_value = float("nan")
+        else:
+            t_stat = 0.0
+            p_value = float("nan")
+
+    # 95% CI using t-critical for n-1 dof; fall back to z=1.96 when n is large.
+    try:
+        from scipy.stats import t as t_dist
+        crit = float(t_dist.ppf(0.975, df=max(1, n - 1))) if n > 1 else 1.96
+    except ImportError:  # pragma: no cover
+        crit = 1.96
+
+    return StatisticalSummary(
+        baseline_name=baseline_name,
+        n=n,
+        mean_savings=mean,
+        std_savings=std,
+        se_savings=se,
+        t_statistic=t_stat,
+        p_value=p_value,
+        ci95_low=mean - crit * se,
+        ci95_high=mean + crit * se,
+    )
+
+
 def _seed_driver_monitor(prices: Dict[str, float], sorted_dates: List[str], lookback: int = 22) -> DriverMonitor:
     """
     Seed a DriverMonitor from ETS price history as a proxy for missing coal/gas data.
@@ -281,6 +418,7 @@ def run_backtest(
     start_date: Optional[str] = None,
     allowances_needed: Optional[int] = None,
     seed: int = 42,
+    forecast_mode: str = "naive",
 ) -> BacktestResult:
     """
     Run end-to-end procurement backtest over rolling historical windows.
@@ -294,10 +432,17 @@ def run_backtest(
     start_date : YYYY-MM-DD first evaluation date (default: after warmup)
     allowances_needed : tons per year (default: from config)
     seed : random seed for reproducible backtests
+    forecast_mode :
+        - "naive" (default): out-of-sample random-walk-with-drift forecast
+          built from prices STRICTLY before the evaluation date. No future
+          leakage. This is the honest test.
+        - "oracle": legacy behaviour — uses (actual future + noise) as the
+          forecast. Upper bound; do NOT report as evidence of agent skill.
 
     Returns
     -------
-    BacktestResult with per-window details and aggregate statistics.
+    BacktestResult with per-window REALIZED costs, paired t-tests vs spot
+    and equal-thirds baselines, and 95% CIs on savings.
     """
     if allowances_needed is None:
         allowances_needed = CARBON_EXPOSURE["eu_ets_allowances_needed_annually"]
@@ -346,8 +491,17 @@ def run_backtest(
         len(eval_indices), start_idx, BACKTEST_STEP_MONTHS,
     )
 
-    result = BacktestResult()
+    if forecast_mode not in ("naive", "oracle"):
+        raise ValueError(f"forecast_mode must be 'naive' or 'oracle', got {forecast_mode!r}")
+    result = BacktestResult(forecast_mode=forecast_mode)
     rng = np.random.default_rng(seed)
+    from .forecast_baselines import (
+        make_random_walk_forecast,
+        baseline_cost_spot,
+        baseline_cost_equal_thirds,
+    )
+
+    eval_horizons = [1, 3, 6]
 
     for window_num, eval_idx in enumerate(eval_indices, 1):
         eval_date = sorted_dates[eval_idx]
@@ -367,9 +521,19 @@ def run_backtest(
         # Build regime monitor from historical data
         regime_monitor = _build_regime_monitor([prices[d] for d in sorted_dates[hist_start:eval_idx + 1]])
 
-        # Generate forecast anchored to this evaluation date
-        window_seed = int(rng.integers(0, 2**31))
-        forecast = _build_forecast_from_actuals(sorted_dates, prices, eval_idx, rng)
+        # ---- Forecast: out-of-sample by default, oracle for sanity checks ----
+        # The honest forecast uses ONLY prices up to and including eval_date.
+        # The oracle uses actual future + noise (legacy, biased upward).
+        if forecast_mode == "naive":
+            past_only = [prices[d] for d in sorted_dates[:eval_idx + 1]]
+            forecast = make_random_walk_forecast(
+                historical_prices=past_only,
+                spot=spot_price,
+                horizons=eval_horizons,
+                target_name=f"naive_{eval_date}",
+            )
+        else:
+            forecast = _build_forecast_from_actuals(sorted_dates, prices, eval_idx, rng)
 
         # Build MAC curve
         mac = build_mac_curve(current_ets_price=spot_price)
@@ -404,13 +568,30 @@ def run_backtest(
             continue
 
         procurement = decision.procurement
-        savings = procurement.cost_if_all_now - procurement.total_cost_expected
+
+        # ---- Realized costs: what actually got paid given future prices ----
+        realized_by_h = _realized_prices_by_horizon(
+            sorted_dates, prices, eval_idx, eval_horizons,
+        )
+        realized_agent = _realized_cost_for_plan(procurement, spot_price, realized_by_h)
+        realized_spot = baseline_cost_spot(spot_price, allowances_needed)
+        realized_equal_thirds = baseline_cost_equal_thirds(
+            realized_by_h, allowances_needed, horizons=eval_horizons,
+        )
+
+        savings_spot = realized_spot - realized_agent
+        if realized_equal_thirds is not None:
+            savings_equal_thirds = realized_equal_thirds - realized_agent
+        else:
+            savings_equal_thirds = None
+
         logger.info(
-            "Backtest window %s: strategy=%s cost=EUR%.0f savings=EUR%+.0f regime=%s epu=%s",
+            "Backtest window %s: strategy=%s realized=EUR%.0f "
+            "(vs spot=EUR%.0f -> %+.0f, vs 1/3s=EUR%s -> %s)",
             eval_date, procurement.strategy,
-            procurement.total_cost_expected, savings,
-            decision.regime.level,
-            decision.epu.level if decision.epu else "N/A",
+            realized_agent, realized_spot, savings_spot,
+            "n/a" if realized_equal_thirds is None else f"{realized_equal_thirds:.0f}",
+            "n/a" if savings_equal_thirds is None else f"{savings_equal_thirds:+.0f}",
         )
 
         window = BacktestWindow(
@@ -419,8 +600,11 @@ def run_backtest(
             allowances_needed=allowances_needed,
             procurement_strategy=procurement.strategy,
             total_cost_expected=procurement.total_cost_expected,
-            cost_if_all_now=procurement.cost_if_all_now,
-            savings_vs_spot=savings,
+            realized_cost_agent=realized_agent,
+            realized_cost_spot=realized_spot,
+            realized_cost_equal_thirds=realized_equal_thirds,
+            savings_vs_spot=savings_spot,
+            savings_vs_equal_thirds=savings_equal_thirds,
             regime_level=decision.regime.level,
             epu_level=decision.epu.level if decision.epu else "N/A",
             epu_value=decision.epu.epu_value if decision.epu else float("nan"),
@@ -434,13 +618,13 @@ def run_backtest(
 
         result.windows.append(window)
 
-    # Aggregate
+    # ---- Aggregate ----
     result.total_windows = len(result.windows)
     if result.total_windows == 0:
         return result
 
     result.windows_won = sum(1 for w in result.windows if w.savings_vs_spot > 0)
-    result.windows_lost = sum(1 for w in result.windows if w.savings_vs_spot <= 0)
+    result.windows_lost = sum(1 for w in result.windows if w.savings_vs_spot < 0)  # ties (==0) excluded
     result.win_rate = result.windows_won / result.total_windows
 
     savings_list = [w.savings_vs_spot for w in result.windows]
@@ -453,6 +637,20 @@ def run_backtest(
         result.strategy_counts[w.procurement_strategy] = result.strategy_counts.get(w.procurement_strategy, 0) + 1
         result.regime_breakdown[w.regime_level] = result.regime_breakdown.get(w.regime_level, 0) + 1
 
+    # ---- Statistical tests against baselines ----
+    agent_costs = [w.realized_cost_agent for w in result.windows]
+    spot_costs = [w.realized_cost_spot for w in result.windows]
+    result.stats_vs_spot = _paired_stats(agent_costs, spot_costs, "buy_all_at_spot")
+
+    equal_thirds_pairs = [
+        (w.realized_cost_agent, w.realized_cost_equal_thirds)
+        for w in result.windows if w.realized_cost_equal_thirds is not None
+    ]
+    if equal_thirds_pairs:
+        a_costs = [p[0] for p in equal_thirds_pairs]
+        e_costs = [p[1] for p in equal_thirds_pairs]
+        result.stats_vs_equal_thirds = _paired_stats(a_costs, e_costs, "equal_thirds_1_3_6")
+
     return result
 
 
@@ -462,25 +660,61 @@ def format_backtest_report(bt: BacktestResult, prices: Dict[str, float]) -> str:
     price_start = min(bt.windows[0].evaluation_date, sorted_dates[0]) if bt.windows else sorted_dates[0]
     price_end = sorted_dates[-1]
 
+    mode_label = {
+        "naive": "OUT-OF-SAMPLE (random-walk-with-drift forecast, no future leakage)",
+        "oracle": "ORACLE (actual future + noise; upper bound, not honest)",
+    }.get(bt.forecast_mode, bt.forecast_mode.upper())
+
     lines = [
         "=" * 72,
         "  CARBONEDGE -- PROCUREMENT BACKTEST REPORT",
         "=" * 72,
+        f"  Forecast mode: {mode_label}",
         f"  Period: {price_start} to {price_end}",
         f"  Windows evaluated: {bt.total_windows}",
         f"  Step size: {BACKTEST_STEP_MONTHS} months",
         f"  Allowances per window: {bt.windows[0].allowances_needed:,} tons" if bt.windows else "",
         "",
-        f"  --- PERFORMANCE vs SPOT BASELINE ---",
-        f"  Windows won (cheaper than spot):  {bt.windows_won}/{bt.total_windows} ({bt.win_rate:.0%})",
-        f"  Windows lost (spot was cheaper):  {bt.windows_lost}/{bt.total_windows} ({1 - bt.win_rate:.0%})",
-        f"  Total savings:        EUR {bt.total_savings_eur:>+12,.0f}",
-        f"  Average savings:      EUR {bt.avg_savings_eur:>+12,.0f} per window",
-        f"  Best window savings:  EUR {bt.max_savings_eur:>+12,.0f}",
-        f"  Worst window loss:    EUR {bt.max_loss_eur:>+12,.0f}",
+        f"  --- REALIZED PERFORMANCE vs SPOT BASELINE ---",
+        f"  Windows beat spot:           {bt.windows_won}/{bt.total_windows}",
+        f"  Windows lost to spot:        {bt.windows_lost}/{bt.total_windows}",
+        f"  Windows tied (LUMP at spot): {bt.total_windows - bt.windows_won - bt.windows_lost}/{bt.total_windows}",
+        f"  Total realized savings:      EUR {bt.total_savings_eur:>+14,.0f}",
+        f"  Avg per-window savings:      EUR {bt.avg_savings_eur:>+14,.0f}",
+        f"  Best window:                 EUR {bt.max_savings_eur:>+14,.0f}",
+        f"  Worst window:                EUR {bt.max_loss_eur:>+14,.0f}",
+    ]
+
+    def _fmt_stats(stats: Optional[StatisticalSummary]) -> List[str]:
+        if stats is None:
+            return ["  (no data)"]
+        sig = "**" if stats.p_value < 0.05 else "  "
+        return [
+            f"  n = {stats.n} paired windows",
+            f"  Mean savings:   EUR {stats.mean_savings:>+14,.0f}",
+            f"  Std deviation:  EUR {stats.std_savings:>+14,.0f}",
+            f"  Std error:      EUR {stats.se_savings:>+14,.0f}",
+            f"  Paired t-stat:   {stats.t_statistic:>+8.3f}",
+            f"  p-value:         {stats.p_value:>8.4f}  {sig}",
+            f"  95% CI:         [EUR {stats.ci95_low:>+12,.0f}, EUR {stats.ci95_high:>+12,.0f}]",
+        ]
+
+    lines.extend([
+        "",
+        "  --- STATS: agent vs BUY-ALL-AT-SPOT (paired t-test) ---",
+    ])
+    lines.extend(_fmt_stats(bt.stats_vs_spot))
+
+    lines.extend([
+        "",
+        "  --- STATS: agent vs EQUAL THIRDS (1/3 at h=1, h=3, h=6) ---",
+    ])
+    lines.extend(_fmt_stats(bt.stats_vs_equal_thirds))
+
+    lines.extend([
         "",
         f"  --- STRATEGY BREAKDOWN ---",
-    ]
+    ])
     for strategy, count in sorted(bt.strategy_counts.items(), key=lambda x: -x[1]):
         pct = count / bt.total_windows * 100
         lines.append(f"  {strategy:<12} {count:>4} windows ({pct:.0f}%)")
@@ -495,16 +729,16 @@ def format_backtest_report(bt: BacktestResult, prices: Dict[str, float]) -> str:
 
     lines.extend([
         "",
-        f"  --- WINDOW DETAILS (last 10) ---",
-        f"  {'Date':<12} {'Price':>7} {'Strategy':<10} {'Cost':>10} {'Savings':>10} {'Regime':<8}",
-        f"  {'-' * 60}",
+        f"  --- WINDOW DETAILS (last 10, realized costs) ---",
+        f"  {'Date':<12} {'Spot':>6} {'Strategy':<10} {'Agent EUR':>11} {'vs Spot':>10} {'vs 1/3s':>10} {'Regime':<8}",
+        f"  {'-' * 75}",
     ])
     for w in bt.windows[-10:]:
+        eq = "    n/a" if w.savings_vs_equal_thirds is None else f"{w.savings_vs_equal_thirds:>+10,.0f}"
         lines.append(
-            f"  {w.evaluation_date:<12} EUR{w.spot_price:>6.0f} "
-            f"{w.procurement_strategy:<10} EUR{w.total_cost_expected:>8,.0f} "
-            f"EUR{w.savings_vs_spot:>+9,.0f} "
-            f"{w.regime_level:<8}"
+            f"  {w.evaluation_date:<12} EUR{w.spot_price:>3.0f} "
+            f"{w.procurement_strategy:<10} {w.realized_cost_agent:>11,.0f} "
+            f"{w.savings_vs_spot:>+10,.0f} {eq} {w.regime_level:<8}"
         )
 
     lines.append("")
