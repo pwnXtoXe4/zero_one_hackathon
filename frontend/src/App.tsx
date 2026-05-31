@@ -24,7 +24,7 @@ function Splash() {
   return (
     <div className="grid min-h-[70vh] place-items-center">
       <div className="flex flex-col items-center gap-3">
-        <div className="h-8 w-8 rounded-full border-2 border-border border-t-signal" />
+        <div className="h-8 w-8 rounded-full border-2 border-border border-t-signal animate-spin" />
         <span className="text-sm text-muted">Routing the deficit across channels…</span>
       </div>
     </div>
