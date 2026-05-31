@@ -1,9 +1,5 @@
-<<<<<<< HEAD
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
-=======
-import { useState } from 'react'
->>>>>>> 13715d9ae121e06b585d401b19b77de167f4f3c8
 import { ChevronDown, Zap, RotateCcw, Activity } from 'lucide-react'
 import { FIRMS, positionOf, CURRENT_PRICE } from '@/data/mock'
 import { api } from '@/data/api'

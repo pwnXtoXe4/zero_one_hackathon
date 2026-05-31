@@ -71,7 +71,6 @@ function Dashboard() {
           {!view || !history.length || !outlook ? (
             <Splash />
           ) : (
-<<<<<<< HEAD
             <motion.div variants={container} initial="hidden" animate="show" className="grid grid-cols-12 gap-4 [&_.card]:h-full">
               {/* HERO — the causal chain on one axis: emissions → overshoot → plan + price */}
               <motion.div variants={item} className="col-span-12">
@@ -88,19 +87,6 @@ function Dashboard() {
               <motion.div variants={item} className="col-span-12 lg:col-span-5">
                 <ExecutionPlanCard plan={view.plan} scenario={scenario} />
               </motion.div>
-=======
-            <div className="grid grid-cols-12 gap-3 [&_.card]:h-full">
-              {/* Row A — position · plan · market */}
-              <div className="col-span-12 lg:col-span-3">
-                <PositionCard firm={view.firm} position={view.position} />
-              </div>
-              <div className="col-span-12 lg:col-span-6">
-                <ExecutionPlanCard plan={view.plan} scenario={scenario} />
-              </div>
-              <div className="col-span-12 lg:col-span-3">
-                <MarketSnapshot history={history} forecast={view.forecast} scenario={scenario} />
-              </div>
->>>>>>> 13715d9ae121e06b585d401b19b77de167f4f3c8
 
               {/* Row B — forecast · drivers */}
               <div className="col-span-12 lg:col-span-8">
@@ -118,7 +104,6 @@ function Dashboard() {
                 <AuctionCalendar auctions={view.auctions} scenario={scenario} />
               </div>
 
-<<<<<<< HEAD
               {/* Row D — execution timeline · timing ladder · market snapshot */}
               <motion.div variants={item} className="col-span-12 lg:col-span-6">
                 <ExecutionTimeline plan={view.plan} />
@@ -138,16 +123,6 @@ function Dashboard() {
                 <OrderBook orders={view.orders} />
               </motion.div>
             </motion.div>
-=======
-              {/* Row D — execution timeline · OTC desk */}
-              <div className="col-span-12 lg:col-span-7">
-                <ExecutionTimeline plan={view.plan} />
-              </div>
-              <div className="col-span-12 lg:col-span-5">
-                <SmartMatchFeed matches={view.matches} scenario={scenario} />
-              </div>
-            </div>
->>>>>>> 13715d9ae121e06b585d401b19b77de167f4f3c8
           )}
 
           <footer className="mt-8 flex items-center justify-between border-t border-border/60 pt-4 text-[11px] text-muted">
