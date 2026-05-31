@@ -1,18 +1,18 @@
 import { ArrowUpRight, Target } from 'lucide-react'
 import { Card, ConfidenceBadge, AnimatedNumber, Donut, CHANNEL_COLOR, CHANNEL_LABEL } from './primitives'
 import type { ExecutionPlan, Scenario } from '@/data/types'
-import { eurM, tons } from '@/lib/utils'
+import { eurM, eurMSavings, tons } from '@/lib/utils'
 
 const ACTION_COLOR: Record<string, string> = {
   BUY: '#D18500', LADDER: '#1E70B8', SELL: '#009B72', WAIT: '#009B72',
 }
 
-function Stat({ label, value, color }: { label: string; value: number; color: string }) {
+function Stat({ label, value, color, format = eurM }: { label: string; value: number; color: string; format?: (n: number) => string }) {
   return (
     <div>
       <div className="label">{label}</div>
       <div className="mt-0.5 font-display text-xl font-bold" style={{ color }}>
-        <AnimatedNumber value={value} format={eurM} />
+        <AnimatedNumber value={value} format={format} />
       </div>
     </div>
   )
@@ -76,7 +76,7 @@ export function ExecutionPlanCard({ plan, scenario }: { plan: ExecutionPlan; sce
       <div className="mt-4 grid grid-cols-3 gap-3 border-t border-border pt-4">
         <Stat label="Expected spend" value={plan.expectedTotal} color="#0F172A" />
         <Stat label="Worst case" value={plan.worstCase} color="#D66A2E" />
-        <Stat label="Saved vs year-end" value={plan.savingsVsYearEnd} color={color} />
+        <Stat label="Saved vs naive" value={plan.savingsVsNaive ?? plan.savingsVsYearEnd} color={color} format={eurMSavings} />
       </div>
 
       {/* monitoring triggers */}

@@ -81,7 +81,7 @@ function deriveRecommendation(plan: ExecutionPlan, firmId: string): Recommendati
     confidence: plan.confidence,
     rationale,
     costAtRisk: plan.expectedTotal,
-    savingsVsNaive: plan.savingsVsBuyAllNow,
+    savingsVsNaive: plan.savingsVsNaive ?? plan.savingsVsBuyAllNow,
   }
 }
 

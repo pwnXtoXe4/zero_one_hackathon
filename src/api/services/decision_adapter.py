@@ -57,14 +57,48 @@ def _load_forecast(forecast_source: str) -> Optional[dict]:
             return None
 
     if forecast_source in ("cache", "mock"):
-        # Prefer the named, known-good EUA price artifact over globbing arbitrary
-        # cache_*.json files (which can include emissions caches or stale mock runs).
+        # Try both the typical named artifacts and any globbed cache files
         named = PREPARED_DIR / "eua_price_forecast.json"
-        candidates = [str(named)] if named.exists() else sorted(glob.glob(str(PREPARED_DIR / "cache_*.json")))
+        live = PREPARED_DIR / "live_forecast.json"
+        candidates = []
+        if named.exists():
+            candidates.append(str(named))
+        if live.exists():
+            candidates.append(str(live))
+        if not candidates:
+            candidates = sorted(glob.glob(str(PREPARED_DIR / "cache_*.json")))
+        
         for path in candidates:
             try:
                 with open(path, encoding="utf-8") as f:
-                    return json.load(f)
+                    data = json.load(f)
+                
+                # If it's the raw live_forecast.json, wrap it with signals and backtest
+                if "forecast" not in data and "data" in data and "forecast_series" in data["data"]:
+                    signals_path = PREPARED_DIR / "live_external_signals.json"
+                    backtest_path = PREPARED_DIR / "live_backtest_metrics.json"
+                    signals = {}
+                    backtest = {}
+                    if signals_path.exists():
+                        try:
+                            with open(signals_path, encoding="utf-8") as sf:
+                                signals = json.load(sf)
+                        except Exception:
+                            pass
+                    if backtest_path.exists():
+                        try:
+                            with open(backtest_path, encoding="utf-8") as bf:
+                                backtest = json.load(bf)
+                        except Exception:
+                            pass
+                    return {
+                        "status": "ok",
+                        "forecast": data,
+                        "signals": signals,
+                        "backtest": backtest,
+                    }
+                
+                return data
             except (OSError, json.JSONDecodeError):
                 continue
         return None

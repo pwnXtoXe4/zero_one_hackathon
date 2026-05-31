@@ -174,7 +174,8 @@ def _channel_for(horizon: int) -> str:
     return "SPOT" if horizon <= 1 else "AUCTION"
 
 
-def _plan_from_decision(decision: EnhancedDecision, D: float, side: str, shock: bool) -> dict:
+def _plan_from_decision(decision: EnhancedDecision, D: float, side: str, shock: bool,
+                        forecast_points: list[dict] | None = None) -> dict:
     proc = decision.procurement
     strat = proc.strategy
     tranches: list[dict] = []
@@ -206,7 +207,21 @@ def _plan_from_decision(decision: EnhancedDecision, D: float, side: str, shock: 
         else f"Secure {_tons(D)} now — {strat_label}" if action == "BUY"
         else f"Ladder {_tons(D)} — {strat_label} across windows"
     )
-    last_p50 = decision.current_price
+
+    # --- Compute savingsVsNaive: compare optimized cost against the naive ---
+    # strategy of procrastinating (buying everything at year-end forecast price).
+    # This is the most intuitive "naive" baseline: what would it cost if the firm
+    # waited until the last moment? When the forecast is rising, buying now saves
+    # money vs waiting, giving a positive savings figure.
+    pts = forecast_points or []
+    last_p50 = pts[-1]["p50"] if pts else decision.current_price
+    naive_cost = D * max(decision.current_price, last_p50)
+    savings_vs_naive = max(0, round(naive_cost - proc.total_cost_expected))
+
+    # --- Compute savingsVsYearEnd: same baseline, kept as a separate field ---
+    # for the ExecutionPlanCard which shows it alongside expectedTotal/worstCase.
+    savings_vs_year_end = savings_vs_naive
+
     return {
         "deficitVolume": round(D),
         "deficit": round(D),
@@ -222,8 +237,8 @@ def _plan_from_decision(decision: EnhancedDecision, D: float, side: str, shock: 
         "worstCase": round(proc.total_cost_worst_case),
         "worstCaseSpend": round(proc.total_cost_worst_case),
         "savingsVsBuyAllNow": round(proc.expected_savings),
-        "savingsVsNaive": round(proc.expected_savings),
-        "savingsVsYearEnd": round(D * last_p50 - proc.total_cost_expected),
+        "savingsVsNaive": savings_vs_naive,
+        "savingsVsYearEnd": savings_vs_year_end,
         "triggers": list(decision.alert_triggers),
     }
 
@@ -370,7 +385,7 @@ def _build_view(company: dict, position: dict, forecast: Optional[dict], shift: 
     band = shift.confidence_band_shrink if shift else 1.0
     points = _forecast_points(forecast, mult=mult, band=band)
     drivers = _drivers(forecast)
-    plan = _plan_from_decision(decision, D, side, shock)
+    plan = _plan_from_decision(decision, D, side, shock, forecast_points=points)
 
     mode = forecast.get("mode", "cache" if forecast.get("forecast") else "fallback")
     return {

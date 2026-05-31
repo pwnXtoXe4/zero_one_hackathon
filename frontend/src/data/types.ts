@@ -190,6 +190,7 @@ export interface ExecutionPlan {
   expectedTotal: number // total € spend (executed + scheduled + held@forecast)
   worstCase: number
   savingsVsBuyAllNow: number
+  savingsVsNaive?: number // savings vs naive uniform-spread strategy (may differ from savingsVsBuyAllNow)
   savingsVsYearEnd: number
   triggers: string[]
 }
