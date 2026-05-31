@@ -26,6 +26,8 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 
 from .config import CARBON_EXPOSURE, COMPANY_PROFILE
+from .enhancement.demand_signal import DemandSignal, DemandState
+from .enhancement.company_risk import CompanyRiskLayer, CompanyRiskProfile
 from .enhancement.driver_filter import DriverBias, DriverFilter
 from .enhancement.epu_modulator import EpuModulator, EpuState
 from .enhancement.regime_enhancer import RegimeBand, get_confidence_multiplier
@@ -73,6 +75,10 @@ class EnhancedDecision:
     alert_triggers: List[str] = field(default_factory=list)
     regime_status: Optional[RegimeStatus] = None
 
+    # Enhancement layers 5 & 6 (added without altering existing fields)
+    demand: Optional[DemandState] = None
+    risk_profile: Optional[CompanyRiskProfile] = None
+
 
 # ---------------------------------------------------------------------------
 # Enhancement pipeline
@@ -86,7 +92,7 @@ def build_enhancement_pipeline(
     fundamental_model: Optional[FundamentalModel],
     driver_monitor: Optional[DriverMonitor],
     evaluation_date: str = "",
-) -> Tuple[RegimeBand, Optional[EpuState], DriverBias, Optional[StructuralBackdrop]]:
+) -> Tuple[RegimeBand, Optional[EpuState], DriverBias, Optional[StructuralBackdrop], Optional[DemandState]]:
     """
     Run all 4 enhancement modules and return their state.
     None of these produce a competing forecast — they adjust bands.
@@ -180,7 +186,18 @@ def build_enhancement_pipeline(
     else:
         logger.debug("Structural layer skipped: no fundamental model provided.")
 
-    return regime, epu, driver_bias, structural
+    # 5. Industrial demand signal
+    demand = None
+    try:
+        demand_signal = DemandSignal()
+        demand = demand_signal.evaluate()
+        logger.info("Demand layer: composite=%.1f YoY=%+.1f%% pressure=%.2f divergence=%.2f",
+            demand.composite_index, demand.composite_yoy_change_pct,
+            demand.demand_pressure, demand.sector_divergence)
+    except Exception as e:
+        logger.warning("Demand signal evaluation failed: %s", e)
+
+    return regime, epu, driver_bias, structural, demand
 
 
 # ---------------------------------------------------------------------------
@@ -195,6 +212,8 @@ def make_procurement_decision(
     epu: Optional[EpuState],
     driver_bias: DriverBias,
     structural: Optional[StructuralBackdrop] = None,
+    demand: Optional[DemandState] = None,
+    risk_profile: Optional[CompanyRiskProfile] = None,
 ) -> ProcurementPlan:
     """
     Convert enhanced forecast bands into a procurement plan.
@@ -275,10 +294,15 @@ def make_procurement_decision(
             structural_shift = 0.02 + 0.03 * max(0.0, structural.tightening_score)
         elif structural.signal == "DEFER":
             structural_shift = -0.02 - 0.03 * max(0.0, -structural.tightening_score)
-    mean_shift = driver_shift + structural_shift
+    if demand is not None:
+        demand_shift_val = demand.demand_pressure * 0.03  # ±3% max
+        logger.info("Demand shift: pressure=%.2f -> mean_shift += %.3f", demand.demand_pressure, demand_shift_val)
+    else:
+        demand_shift_val = 0.0
+    mean_shift = driver_shift + structural_shift + demand_shift_val
     logger.info(
-        "Forecast mean shift: driver=%+.3f + structural=%+.3f -> %+.3f (applied as multiplier 1+shift)",
-        driver_shift, structural_shift, mean_shift,
+        "Forecast mean shift: driver=%+.3f + structural=%+.3f + demand=%+.3f -> %+.3f (applied as multiplier 1+shift)",
+        driver_shift, structural_shift, demand_shift_val, mean_shift,
     )
 
     # Apply the mean shift to the forecast going into the optimizer
@@ -320,6 +344,12 @@ def make_procurement_decision(
     # Narrow bands -> trust the forecast direction (low λ).
     # Wide bands -> hedge with spot certainty (high λ).
     risk_lambda = float(np.clip(0.05 + 0.30 * forecast.band_width_ratio / 0.5, 0.05, 0.50))
+
+    # Company risk layer override: peer-group emission predictability sets the
+    # CVaR risk aversion for this company type, superseding the band-width default.
+    if risk_profile is not None:
+        risk_lambda = risk_profile.risk_adjusted_lambda
+        logger.info("Company risk layer: using risk_lambda=%.2f (sector=%s size=%s)", risk_lambda, risk_profile.sector, risk_profile.size)
 
     # Run CVaR optimizer (scipy SLSQP over allocation fractions).
     forecast_mean = shifted_mean
@@ -408,6 +438,7 @@ def run_decision_agent(
     fundamental_model: Optional[FundamentalModel] = None,
     driver_monitor: Optional[DriverMonitor] = None,
     evaluation_date: str = "",
+    risk_profile: Optional[CompanyRiskProfile] = None,
 ) -> EnhancedDecision:
     """
     Run the enhanced decision pipeline:
@@ -417,7 +448,7 @@ def run_decision_agent(
     """
 
     # ---- Enhancement Pipeline ----
-    regime, epu, driver_bias, structural = build_enhancement_pipeline(
+    regime, epu, driver_bias, structural, demand = build_enhancement_pipeline(
         ets_forecast, current_ets_price,
         regime_monitor, historical_prices,
         fundamental_model, driver_monitor,
@@ -428,6 +459,7 @@ def run_decision_agent(
     procurement = make_procurement_decision(
         ets_forecast, current_ets_price, allowances_needed,
         regime, epu, driver_bias, structural,
+        demand=demand, risk_profile=risk_profile,
     )
 
     # ---- Alerts ----
@@ -469,6 +501,14 @@ def run_decision_agent(
                 f"Cap declining {structural.annual_cap_decline_mt_per_year:.0f} Mt/year."
             )
 
+    # Demand & company-risk alerts
+    if demand is not None:
+        alerts.append(f"[DEMAND] {demand.reasoning}")
+        if demand.sector_divergence > 0.5:
+            alerts.append(f"[DEMAND DIVERGENCE] Sectors pulling apart ({demand.sector_divergence:.2f}). Consider sector-specific strategies.")
+    if risk_profile is not None:
+        alerts.append(f"[RISK] {risk_profile.reasoning}")
+
     # Procurement alerts
     alerts.append(
         f"[PROCUREMENT] {procurement.strategy}: {procurement.total_tons:,} tons, "
@@ -505,4 +545,6 @@ def run_decision_agent(
             "reduction_tons": reduction_plan.total_tons_reduced,
             "reserve": reduction_plan.reserve_budget,
         },
+        demand=demand,
+        risk_profile=risk_profile,
     )

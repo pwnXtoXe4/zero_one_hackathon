@@ -73,6 +73,29 @@ def format_full_decision(
     for alert in decision.alert_triggers:
         parts.append(f"  [*] {alert}")
 
+    # Demand Signal section
+    if decision.demand is not None:
+        parts.append("")
+        parts.append("--- Industrial Carbon Demand Index ---")
+        parts.append(f"  Composite YoY: {decision.demand.composite_yoy_change_pct:+.1f}%")
+        parts.append(f"  Demand Pressure: {decision.demand.demand_pressure:+.2f} ({decision.demand.signal})")
+        parts.append(f"  Sector Divergence: {decision.demand.sector_divergence:.2f}")
+        parts.append(f"  Sectors: " + ", ".join(
+            f"{s}={v:+.1f}%" for s, v in decision.demand.sector_momentum.items()
+        ))
+        parts.append(f"  {decision.demand.reasoning}")
+
+    # Company Risk section
+    if decision.risk_profile is not None:
+        parts.append("")
+        parts.append("--- Company Risk Profile ---")
+        parts.append(f"  Sector/Size: {decision.risk_profile.sector}/{decision.risk_profile.size}")
+        parts.append(f"  Emission Volatility (CV): {decision.risk_profile.emission_volatility_cv:.3f}")
+        parts.append(f"  Predictability: {decision.risk_profile.predictability_score:.2f}")
+        parts.append(f"  Risk Lambda: {decision.risk_profile.risk_adjusted_lambda:.2f}")
+        parts.append(f"  Peer Group Size: {decision.risk_profile.peer_count}")
+        parts.append(f"  {decision.risk_profile.reasoning}")
+
     parts.append("")
     parts.append(SEPARATOR)
     return "\n".join(parts)

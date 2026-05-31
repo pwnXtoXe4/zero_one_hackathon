@@ -304,6 +304,17 @@ def run_carbonedge_with_forecast(
 
     prices_list = list(historical_prices)
 
+    # Company risk profile for the default company archetype (Salzgitter steel).
+    # Degrades gracefully if the 30K-company dataset is unavailable.
+    risk_profile = None
+    try:
+        from .enhancement.company_risk import CompanyRiskLayer
+        risk_layer = CompanyRiskLayer()
+        risk_profile = risk_layer.get_profile("steel", "large")
+    except Exception as e:
+        logger.warning("Company risk layer not available: %s", e)
+        print(f"  [warning] Company risk layer not available: {e}")
+
     # Run decision agent (with enhancement pipeline)
     decision = run_decision_agent(
         ets_forecast=forecast,
@@ -315,6 +326,7 @@ def run_carbonedge_with_forecast(
         historical_prices=prices_list,
         fundamental_model=fundamental_model,
         driver_monitor=driver_monitor,
+        risk_profile=risk_profile,
     )
 
     # Format output
