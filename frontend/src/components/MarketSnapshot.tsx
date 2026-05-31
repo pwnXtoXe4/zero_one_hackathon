@@ -10,7 +10,7 @@ export function MarketSnapshot({
   forecast: ForecastPoint[]
   scenario: Scenario
 }) {
-  const last = forecast[forecast.length - 1]
+  const last = forecast.length ? forecast[forecast.length - 1] : null
   const spark = history.slice(-24).map((h) => h.price)
   const color = scenario === 'shock' ? '#D18500' : '#1E70B8'
   return (
@@ -31,7 +31,7 @@ export function MarketSnapshot({
         </div>
         <div className="mt-1 flex items-baseline gap-2">
           <span className="font-display text-2xl font-bold" style={{ color }}>
-            <AnimatedNumber value={last.p50} format={(n) => '€' + n.toFixed(0)} />
+            {last ? <AnimatedNumber value={last.p50} format={(n) => '€' + n.toFixed(0)} /> : <span className="text-muted">—</span>}
           </span>
           <span className="text-sm font-semibold" style={{ color }}>
             {scenario === 'shock' ? '+66%' : '+8%'}
