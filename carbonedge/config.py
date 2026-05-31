@@ -40,7 +40,6 @@ class ReductionOption:
     name: str
     cost_per_ton: float          # EUR / ton CO2e
     max_reduction_pct: float     # % of source emissions reducible
-    capex_fixed: float = 0.0     # fixed upfront investment
     lead_time_months: int = 0    # months before benefit starts
     category: str = "efficiency"
 
@@ -171,12 +170,7 @@ ALLOCATOR_CONFIG = {
 # Decision thresholds
 # ---------------------------------------------------------------------------
 
-DECISION_THRESHOLDS = {
-    "buy_confidence_threshold": 0.8,   # confidence band width / mean < 0.8 -> narrow
-    "ladder_boundary": 0.3,            # band width / mean > 0.3 -> ladder
-    "price_trend_up_threshold": 1.02,  # forecast/current > 1.02 -> UP
-    "price_trend_down_threshold": 0.98,# forecast/current < 0.98 -> DOWN
-}
+DECISION_THRESHOLDS = ...  # removed (dead code)
 
 # ---------------------------------------------------------------------------
 # Helper: load a JSON time series

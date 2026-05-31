@@ -57,16 +57,6 @@ class PricePressure:
     min_12m: float           # 12-month historical min
     forecast_points: List[float]  # forecast values across horizons 1-12
 
-    @property
-    def dominant(self) -> str:
-        """Which pressure dominates?"""
-        gap = self.pp_plus - self.pp_minus
-        if gap > PP_DOMINANCE_THRESHOLD:
-            return "UPWARD"
-        if gap < -PP_DOMINANCE_THRESHOLD:
-            return "DOWNWARD"
-        return "BALANCED"
-
 
 @dataclass
 class DemandPressure:
@@ -374,35 +364,3 @@ class FundamentalModel:
             price_pressure=pp,
             demand_pressure=dp,
         )
-
-    def evaluate_range(
-        self, start_year: int, end_year: int, month: int = 1
-    ) -> List[BalanceSignal]:
-        return [self.evaluate(y, month) for y in range(start_year, end_year + 1)]
-
-    def summary(self, year: Optional[int] = None) -> Dict:
-        if year is None:
-            year = datetime.now().year
-        sig = self.evaluate(year)
-        caps = self.cap_schedule.years
-        cap_years = sorted(caps)
-        start = cap_years[0]
-        end = cap_years[-1]
-        return {
-            "current_year": year,
-            "latest_verified_year": self.latest_verified_year,
-            "signal": sig.signal,
-            "signal_strength": round(sig.signal_strength, 3),
-            "market_balance_mt": round(sig.market_balance_mt, 1),
-            "cap_mt": round(sig.cap_mt, 1),
-            "latest_verified_emissions_mt": round(sig.verified_emissions_mt, 1),
-            "msr_intake_mt": round(sig.msr_intake_mt, 1),
-            "tnac_million": round(sig.tnac_million, 1),
-            "msr_holdings_million": round(sig.msr_holdings_million, 1),
-            "cap_start": caps[start],
-            "cap_end": caps[end],
-            "cumulative_cap_reduction_mt": round(caps[start] - caps[end], 1),
-            "annual_cap_reduction_rate_mt_per_year": round(
-                (caps[start] - caps[end]) / (end - start), 1
-            ),
-        }

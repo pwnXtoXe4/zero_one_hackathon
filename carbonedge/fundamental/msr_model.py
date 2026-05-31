@@ -41,11 +41,6 @@ class MSRState:
     release: float        # allowances released this year
     invalidated: float    # allowances permanently invalidated this year
 
-    @property
-    def net_effect(self) -> float:
-        """Net MSR effect on market supply (negative = tightening)."""
-        return self.release - self.intake - self.invalidated
-
 
 @dataclass
 class MSRModel:
@@ -137,41 +132,3 @@ class MSRModel:
         )
         self.history.append(state)
         return state
-
-    def project(
-        self,
-        start_year: int,
-        end_year: int,
-        cap_schedule: Dict[int, float],
-        emissions_schedule: Dict[int, float],
-    ) -> List[MSRState]:
-        """Project MSR states over a multi-year horizon."""
-        results = []
-        for y in range(start_year, end_year + 1):
-            cap = cap_schedule.get(y)
-            ems = emissions_schedule.get(y)
-            if cap is None:
-                raise KeyError(f"Cap schedule missing year {y}")
-            if ems is None:
-                raise KeyError(f"Emissions schedule missing year {y}")
-            state = self.step(y, cap * _M, ems * _M)
-            results.append(state)
-        return results
-
-    def summary(self) -> Dict:
-        """Return a human-readable summary of MSR status."""
-        if not self.history:
-            return {"error": "No simulation history"}
-
-        last = self.history[-1]
-        return {
-            "current_year": last.year,
-            "tnac_million": round(last.tnac / _M, 1),
-            "msr_holdings_million": round(last.msr_holdings / _M, 1),
-            "last_intake_million": round(last.intake / _M, 1),
-            "last_release_million": round(last.release / _M, 1),
-            "last_invalidated_million": round(last.invalidated / _M, 1),
-            "in_intake_zone_24pct": last.tnac > MSR_INTAKE_UPPER_THRESHOLD,
-            "in_intake_zone_12pct": MSR_INTAKE_LOWER_THRESHOLD < last.tnac <= MSR_INTAKE_UPPER_THRESHOLD,
-            "in_release_zone": last.tnac < MSR_RELEASE_THRESHOLD,
-        }

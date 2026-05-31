@@ -112,22 +112,6 @@ def load_ets_csv() -> EtsData:
     return EtsData(verified_emissions=dict(sorted(verified.items())))
 
 
-def load_monthly_prices() -> Dict[str, float]:
-    """Load the monthly ETS price JSON from the centralized data directory."""
-    path = DATA_DIR / "eu_ets_monthly_prices.json"
-    if path.exists():
-        with open(path) as f:
-            data = json.load(f)
-        logger.debug("load_monthly_prices: %d points from %s", len(data), path)
-        return data
-    warnings.warn(
-        f"load_monthly_prices: No price file found at {path}. "
-        "PP+/PP- price pressure analysis will be unavailable."
-    )
-    logger.warning("load_monthly_prices: %s not found", path)
-    return {}
-
-
 def get_annual_emissions(ets_data: EtsData) -> Dict[int, float]:
     """
     Returns verified emissions in megatons (Mt CO2) per year.

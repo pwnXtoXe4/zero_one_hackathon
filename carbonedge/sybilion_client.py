@@ -23,14 +23,6 @@ class ForecastResult:
     forecast_points: Dict[int, Dict[str, float]] = field(default_factory=dict)
     driver_importance: Dict[str, List[float]] = field(default_factory=dict)
     backtest_accuracy: Optional[float] = None
-    raw_response: Optional[Dict[str, Any]] = None
-
-    @property
-    def confidence_bands(self) -> Dict[int, Tuple[float, float]]:
-        return {
-            m: (d.get("low", d["value"]), d.get("high", d["value"]))
-            for m, d in self.forecast_points.items()
-        }
 
     @property
     def band_width_ratio(self) -> float:
@@ -55,20 +47,6 @@ class ForecastResult:
         if ratio < 0.95:
             return "DOWN"
         return "FLAT"
-
-    def confidence_level(self, horizon: int) -> str:
-        """NARROW / MEDIUM / WIDE for a specific horizon."""
-        if horizon not in self.forecast_points:
-            return "WIDE"
-        d = self.forecast_points[horizon]
-        low = d.get("low", d["value"])
-        high = d.get("high", d["value"])
-        ratio = (high - low) / d["value"] if d["value"] > 0 else 1.0
-        if ratio < 0.15:
-            return "NARROW"
-        if ratio < 0.40:
-            return "MEDIUM"
-        return "WIDE"
 
 
 def build_forecast_request(
@@ -352,7 +330,6 @@ def parse_forecast_response(
     if result.backtest_accuracy is not None:
         logger.debug("Backtest MAPE = %.3f%%", result.backtest_accuracy)
 
-    result.raw_response = response
     return result
 
 

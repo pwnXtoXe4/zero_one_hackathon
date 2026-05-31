@@ -435,7 +435,7 @@ def run_carbonedge_with_forecast(
     if scenario and scenario in scenarios:
         shift = scenarios[scenario]
         logger.info("Applying scenario shift: %s", shift.name)
-        delta = recalculate_after_shift(shift, forecast, mac, COMPANY_PROFILE["annual_reduction_budget_eur"])
+        delta = recalculate_after_shift(shift, forecast, mac)
         logger.info(
             "Adaptive delta: %d decision changes, %d driver shifts, additional savings EUR%+.0f",
             len(delta.changed_decisions),

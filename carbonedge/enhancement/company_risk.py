@@ -63,9 +63,6 @@ class CompanyRiskLayer:
     def get_profile(self, sector: str, size: str) -> Optional[CompanyRiskProfile]:
         return self._profiles.get(f"{sector}_{size}")
 
-    def all_profiles(self) -> List[CompanyRiskProfile]:
-        return list(self._profiles.values())
-
 
 def _yoy_pct(series: np.ndarray) -> float:
     """Latest 3-month average vs the same 3 months one year earlier."""

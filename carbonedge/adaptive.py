@@ -13,7 +13,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
-from .config import COMPANY_PROFILE, DECISION_THRESHOLDS, CARBON_EXPOSURE
+from .config import COMPANY_PROFILE, CARBON_EXPOSURE
 
 logger = logging.getLogger(__name__)
 from .mac_curve import MACCurve, build_mac_curve, mac_summary
@@ -125,7 +125,6 @@ def recalculate_after_shift(
     scenario: ScenarioShift,
     original_forecast: ForecastResult,
     original_mac: MACCurve,
-    current_budget: float,
 ) -> AdaptiveDelta:
     """
     Run a full recalculation after a scenario shift:

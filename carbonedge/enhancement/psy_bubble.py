@@ -38,8 +38,6 @@ logger = logging.getLogger(__name__)
 
 PSY_SIGNIFICANCE = 0.05
 PSY_N_SIMULATIONS = 2000
-LPPL_OSCILLATION_MIN = 3.0
-LPPL_CRASH_WINDOW = 3
 
 
 @dataclass

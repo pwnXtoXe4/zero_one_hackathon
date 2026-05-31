@@ -55,15 +55,6 @@ class AllocationConstraints:
     max_single_fraction: float = 1.0     # cap any single bucket -- forces spread
     binding_reasons: List[str] = field(default_factory=list)
 
-    def is_trivial(self) -> bool:
-        return (
-            self.min_spot_fraction <= 0.0
-            and self.max_spot_fraction >= 1.0
-            and self.min_front_fraction <= 0.0
-            and self.max_back_fraction >= 1.0
-            and self.max_single_fraction >= 1.0
-        )
-
     def resolve_conflicts(self) -> List[str]:
         """Detect infeasible combinations and relax them. Returns dropped reasons."""
         dropped: List[str] = []
@@ -111,23 +102,6 @@ class ProcurementPlan:
     # 'trend_guard_active', 'min_spot', 'max_spot', 'max_back', 'max_single',
     # 'constraint_reasons', 'risk_lambda'.
     diagnostics: Dict[str, object] = field(default_factory=dict)
-
-    def summary(self) -> str:
-        lines = [f"Procurement Plan: {self.total_tons:,} tons across {len(self.windows)} windows",
-                 f"  Strategy: {self.strategy}",
-                 f"  Expected total cost: EUR {self.total_cost_expected:,.0f}",
-                 f"  Worst-case cost (CVaR 95%): EUR {self.total_cost_worst_case:,.0f}",
-                 f"  Cost if bought all now: EUR {self.cost_if_all_now:,.0f}",
-                 f"  Expected savings: EUR {self.expected_savings:+,.0f}",
-                 f"  Worst-case savings: EUR {self.worst_case_savings:+,.0f}",
-                 f"  Reasoning: {self.reasoning}"]
-        for w in self.windows:
-            lines.append(
-                f"  [{w.label:>5}] {w.tons:>6,} tons @ EUR{w.expected_price:.0f} "
-                f"(range EUR{w.price_low:.0f}-{w.price_high:.0f}) "
-                f"= EUR {w.cost_expected:,.0f}"
-            )
-        return "\n".join(lines)
 
 
 def _sample_price_path(

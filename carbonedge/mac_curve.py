@@ -15,7 +15,6 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 from .config import (
-    DECISION_THRESHOLDS,
     EMISSION_SOURCES,
     MAC_CONFIG,
     ReductionOption,

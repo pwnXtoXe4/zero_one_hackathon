@@ -31,7 +31,6 @@ except ImportError:
 logger = logging.getLogger(__name__)
 from .decision_agent import run_decision_agent
 from .enhancement.driver_filter import DriverBias
-from .enhancement.epu_modulator import EpuModulator, EpuState
 from .enhancement.regime_enhancer import RegimeBand
 from .fundamental.balance_model import FundamentalModel
 from .fundamental.cap_schedule import build_cap_schedule
@@ -39,7 +38,7 @@ from .fundamental.data_sources import load_ets_csv
 from .fundamental.driver_monitor import DriverMonitor
 from .mac_curve import build_mac_curve
 from .regime_detector import RegimeMonitor
-from .sybilion_client import ForecastResult, parse_forecast_response
+from .sybilion_client import ForecastResult
 
 BACKTEST_WINDOW_MONTHS = 60
 BACKTEST_MIN_WINDOWS = 12
@@ -523,7 +522,6 @@ def _seed_driver_monitor(prices: Dict[str, float], sorted_dates: List[str], look
 
 def run_backtest(
     prices: Dict[str, float],
-    epu_modulator: Optional[EpuModulator] = None,
     fundamental_model: Optional[FundamentalModel] = None,
     driver_monitor: Optional[DriverMonitor] = None,
     start_date: Optional[str] = None,
@@ -545,7 +543,6 @@ def run_backtest(
     Parameters
     ----------
     prices : {YYYY-MM-DD: float} chronological monthly ETS prices
-    epu_modulator : pre-built EpuModulator (if None, built fresh per window)
     fundamental_model : pre-built FundamentalModel
     driver_monitor : pre-built DriverMonitor
     start_date : YYYY-MM-DD first evaluation date (default: after warmup)

@@ -151,10 +151,6 @@ class FocusDetector:
     def statistic(self) -> float:
         return self._last_statistic
 
-    @property
-    def change_points(self) -> List[int]:
-        return list(self._change_points)
-
 
 # ---------------------------------------------------------------------------
 # Layer 2: CUSUM on forecast residuals
@@ -323,7 +319,6 @@ class RegimeMonitor:
         self._status_history: List[RegimeStatus] = []
         self._last_focus_triggered: bool = False
         self._last_cusum_triggered: bool = False
-        self._last_cusum_msg: str = ""
 
     def update(self, price: float, forecast: float = None) -> RegimeStatus:
         """
@@ -341,7 +336,6 @@ class RegimeMonitor:
 
         self._last_focus_triggered = focus_triggered
         self._last_cusum_triggered = cusum_triggered
-        self._last_cusum_msg = cusum_msg
 
         regime_change = focus_triggered and cusum_triggered
 
