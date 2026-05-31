@@ -1,7 +1,4 @@
-import {
-  Area, CartesianGrid, ComposedChart, Line, ReferenceArea, ReferenceLine,
-  ResponsiveContainer, Tooltip, XAxis, YAxis,
-} from 'recharts'
+import { CartesianGrid, ComposedChart, Line, ReferenceArea, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Card, CHANNEL_COLOR, CHANNEL_LABEL } from './primitives'
 import type { EmissionsOutlook, ExecutionPlan, ForecastPoint, Scenario, Tranche } from '@/data/types'
 import { eur, tons } from '@/lib/utils'
@@ -103,16 +100,6 @@ export function CarbonEdgeTimeline({
       <div className="h-[340px] w-full">
         <ResponsiveContainer>
           <ComposedChart data={data} margin={{ top: 10, right: 6, bottom: 0, left: 6 }}>
-            <defs>
-              <linearGradient id="emBand" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#2563EB" stopOpacity={0.26} />
-                <stop offset="100%" stopColor="#2563EB" stopOpacity={0.06} />
-              </linearGradient>
-              <linearGradient id="tlPriceBand" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={priceAccent} stopOpacity={0.20} />
-                <stop offset="100%" stopColor={priceAccent} stopOpacity={0.05} />
-              </linearGradient>
-            </defs>
             <CartesianGrid stroke="#EDF1F6" vertical={false} />
             <XAxis dataKey="label" tick={{ fill: '#94A3B8', fontSize: 11 }} tickLine={false} axisLine={false} />
             <YAxis yAxisId="em" tick={{ fill: '#94A3B8', fontSize: 11 }} tickLine={false} axisLine={false} width={52} tickFormatter={emTick} domain={[0, 'dataMax']} />
@@ -126,16 +113,8 @@ export function CarbonEdgeTimeline({
             <ReferenceLine yAxisId="em" y={outlook.freeAllocation} stroke="#64748B" strokeDasharray="6 4"
               label={{ value: `free allocation ${emTick(outlook.freeAllocation)}`, fill: '#64748B', fontSize: 10, position: 'insideBottomRight' }} />
 
-            {/* Cumulative emissions band + median */}
-            <Area yAxisId="em" dataKey="cumBase" stackId="em" stroke="none" fill="transparent" isAnimationActive={false} />
-            <Area yAxisId="em" dataKey="cumSpan" stackId="em" stroke="none" fill="url(#emBand)" isAnimationActive={false} />
+            {/* Cumulative emissions median */}
             <Line yAxisId="em" dataKey="cumP50" stroke="#2563EB" strokeWidth={2.4} dot={false} isAnimationActive={false} />
-
-            {/* EUA price band (right axis) — the dashed median line was removed as
-                redundant (it ran flat, parallel to the free-allocation line, and the
-                price now has its own dedicated forecast chart). */}
-            <Area yAxisId="price" dataKey="priceBase" stackId="pr" stroke="none" fill="transparent" isAnimationActive={false} connectNulls />
-            <Area yAxisId="price" dataKey="priceSpan" stackId="pr" stroke="none" fill="url(#tlPriceBand)" isAnimationActive={false} connectNulls />
 
             {/* Procurement action marker — placed before the overshoot */}
             {plan.side === 'SHORT' && securedNow > 0 && (
