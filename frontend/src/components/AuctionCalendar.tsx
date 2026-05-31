@@ -21,9 +21,7 @@ export function AuctionCalendar({ auctions, scenario }: { auctions: AuctionDay[]
           {shock ? 'MSR supply −20%' : 'EEX · 09:00–11:00 CET'}
         </span>
       </div>
-      <p className="mt-1 text-[12px] leading-snug text-muted">
-        Days the EU sells newly issued allowances. A coloured border marks the days the agent recommends bidding on.
-      </p>
+
 
       <div className="mt-3.5 flex gap-3 overflow-x-auto pb-1">
         {auctions.map((a) => {

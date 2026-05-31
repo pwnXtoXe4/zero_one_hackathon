@@ -66,15 +66,15 @@ export function emissionsOutlook(f: Firm): EmissionsOutlook {
   const expected = cross('cumP50')
   const overshoot = expected
     ? (() => {
-        const start = cross('cumP90') ?? expected
-        const end = cross('cumP10') ?? months[months.length - 1]
-        return {
-          startMonth: start.month, startLabel: start.label,
-          expectedMonth: expected.month, expectedLabel: expected.label,
-          endMonth: end.month, endLabel: end.label,
-          label: start.month !== end.month ? `${start.label}–${end.label}` : start.label,
-        }
-      })()
+      const start = cross('cumP90') ?? expected
+      const end = cross('cumP10') ?? months[months.length - 1]
+      return {
+        startMonth: start.month, startLabel: start.label,
+        expectedMonth: expected.month, expectedLabel: expected.label,
+        endMonth: end.month, endLabel: end.label,
+        label: start.month !== end.month ? `${start.label}–${end.label}` : start.label,
+      }
+    })()
     : null
   return {
     companyId: f.id, company: f.name, unit: 'tCO2', year: 2026, source: 'synthetic',
@@ -141,19 +141,19 @@ export function forecast(scenario: Scenario): ForecastPoint[] {
 export function drivers(scenario: Scenario): Driver[] {
   return scenario === 'shock'
     ? [
-        { name: 'Market Stability Reserve', importance: 68, direction: 0.9 },
-        { name: 'Auction supply volume', importance: 44, direction: 0.9 },
-        { name: 'EU ETS reform', importance: 33, direction: 0.7 },
-        { name: 'CBAM phase-in', importance: 21, direction: 0.6 },
-        { name: 'Natural gas price', importance: 12, direction: 0.4 },
-      ]
+      { name: 'Market Stability Reserve', importance: 68, direction: 0.9 },
+      { name: 'Auction supply volume', importance: 44, direction: 0.9 },
+      { name: 'EU ETS reform', importance: 33, direction: 0.7 },
+      { name: 'CBAM phase-in', importance: 21, direction: 0.6 },
+      { name: 'Natural gas price', importance: 12, direction: 0.4 },
+    ]
     : [
-        { name: 'EU ETS reform', importance: 45, direction: 0.8 },
-        { name: 'Natural gas price', importance: 30, direction: 0.6 },
-        { name: 'CBAM phase-in', importance: 25, direction: 0.7 },
-        { name: 'Renewable auctions', importance: 18, direction: -0.5 },
-        { name: 'Industrial output', importance: 15, direction: 0.5 },
-      ]
+      { name: 'EU ETS reform', importance: 45, direction: 0.8 },
+      { name: 'Natural gas price', importance: 30, direction: 0.6 },
+      { name: 'CBAM phase-in', importance: 25, direction: 0.7 },
+      { name: 'Renewable auctions', importance: 18, direction: -0.5 },
+      { name: 'Industrial output', importance: 15, direction: 0.5 },
+    ]
 }
 
 // Honest framing for the Sybilion drivers (offline fallback mirror of the backend).
@@ -182,27 +182,27 @@ export function recommendation(f: Firm, scenario: Scenario): Recommendation {
   if (pos.side === 'LONG') {
     return scenario === 'shock'
       ? {
-          action: 'WAIT', headline: 'HOLD surplus — sell into the spike', lockNowPct: 0, confidence: 'high',
-          rationale: ['Reform shock lifts EUA to €121 (p50, +66%)', 'Your surplus gains value every week held', 'Sell laddered above €110'],
-          costAtRisk: vol * CURRENT_PRICE, savingsVsNaive: vol * (121 - CURRENT_PRICE),
-        }
+        action: 'WAIT', headline: 'HOLD surplus — sell into the spike', lockNowPct: 0, confidence: 'high',
+        rationale: ['Reform shock lifts EUA to €121 (p50, +66%)', 'Your surplus gains value every week held', 'Sell laddered above €110'],
+        costAtRisk: vol * CURRENT_PRICE, savingsVsNaive: vol * (121 - CURRENT_PRICE),
+      }
       : {
-          action: 'WAIT', headline: 'HOLD surplus — structural drift up', lockNowPct: 0, confidence: 'medium',
-          rationale: ['Cap tightens −4.2%/yr → rising floor', 'Forecast drifts to €79 by Oct', 'Sell partial above €78'],
-          costAtRisk: vol * CURRENT_PRICE, savingsVsNaive: vol * (79 - CURRENT_PRICE),
-        }
+        action: 'WAIT', headline: 'HOLD surplus — structural drift up', lockNowPct: 0, confidence: 'medium',
+        rationale: ['Cap tightens −4.2%/yr → rising floor', 'Forecast drifts to €79 by Oct', 'Sell partial above €78'],
+        costAtRisk: vol * CURRENT_PRICE, savingsVsNaive: vol * (79 - CURRENT_PRICE),
+      }
   }
   return scenario === 'shock'
     ? {
-        action: 'BUY', headline: 'BUY 100% NOW — lock before the reform spike', lockNowPct: 100, confidence: 'high',
-        rationale: ['EU accelerates ETS cap −20% → p50 €121 by Oct', 'Confidence band narrowed after policy confirmation', `Each month of delay ≈ €${Math.round((vol * 8) / 1e6)}M extra`],
-        costAtRisk: vol * CURRENT_PRICE, savingsVsNaive: vol * (121 - CURRENT_PRICE) * 0.7,
-      }
+      action: 'BUY', headline: 'BUY 100% NOW — lock before the reform spike', lockNowPct: 100, confidence: 'high',
+      rationale: ['EU accelerates ETS cap −20% → p50 €121 by Oct', 'Confidence band narrowed after policy confirmation', `Each month of delay ≈ €${Math.round((vol * 8) / 1e6)}M extra`],
+      costAtRisk: vol * CURRENT_PRICE, savingsVsNaive: vol * (121 - CURRENT_PRICE) * 0.7,
+    }
     : {
-        action: 'LADDER', headline: 'BUY 60% NOW, ladder the rest', lockNowPct: 60, confidence: 'medium',
-        rationale: ['Trajectory up €73 → €79 (p50)', 'Near-term band narrow, month 6 wide', '“EU ETS reform” driver importance rising'],
-        costAtRisk: vol * CURRENT_PRICE, savingsVsNaive: vol * 4.5,
-      }
+      action: 'LADDER', headline: 'BUY 60% NOW, ladder the rest', lockNowPct: 60, confidence: 'medium',
+      rationale: ['Trajectory up €73 → €79 (p50)', 'Near-term band narrow, month 6 wide', '“EU ETS reform” driver importance rising'],
+      costAtRisk: vol * CURRENT_PRICE, savingsVsNaive: vol * (BASE_P50[BASE_P50.length - 1] - CURRENT_PRICE),
+    }
 }
 
 export function matches(f: Firm, scenario: Scenario): Match[] {
@@ -281,32 +281,32 @@ export function channels(f: Firm, scenario: Scenario): ChannelOption[] {
   if (pos.side === 'LONG') {
     return shock
       ? [
-          { key: 'SPOT', effCost: 87.8, expectedPrice: 88.0, fillProb: 1.0, available: 999999, recommendedVolume: r1(0.6), rank: 1, reason: 'Deepest bid side — offload surplus into the MSR-driven spike now.' },
-          { key: 'OTC', effCost: 87.0, expectedPrice: 87.2, fillProb: 0.9, available: r1(0.5), recommendedVolume: r1(0.4), rank: 2, reason: 'Bilateral buyers paying a premium for size — lock it.' },
-          { key: 'RFQ', effCost: 86.2, expectedPrice: 86.0, fillProb: 0.95, available: 40000, recommendedVolume: 0, rank: 3, reason: 'Keep as fallback; spot is already absorbing volume.' },
-        ]
+        { key: 'SPOT', effCost: 87.8, expectedPrice: 88.0, fillProb: 1.0, available: 999999, recommendedVolume: r1(0.6), rank: 1, reason: 'Deepest bid side — offload surplus into the MSR-driven spike now.' },
+        { key: 'OTC', effCost: 87.0, expectedPrice: 87.2, fillProb: 0.9, available: r1(0.5), recommendedVolume: r1(0.4), rank: 2, reason: 'Bilateral buyers paying a premium for size — lock it.' },
+        { key: 'RFQ', effCost: 86.2, expectedPrice: 86.0, fillProb: 0.95, available: 40000, recommendedVolume: 0, rank: 3, reason: 'Keep as fallback; spot is already absorbing volume.' },
+      ]
       : [
-          { key: 'SPOT', effCost: 73.0, expectedPrice: 73.1, fillProb: 1.0, available: 999999, recommendedVolume: r1(0.4), rank: 1, reason: 'Bank a partial surplus at today’s spot, no counterparty risk.' },
-          { key: 'RFQ', effCost: 76.0, expectedPrice: 76.0, fillProb: 0.95, available: 40000, recommendedVolume: r1(0.35), rank: 2, reason: 'Sell into the rising floor over the next quarter.' },
-          { key: 'OTC', effCost: 78.0, expectedPrice: 78.0, fillProb: 0.85, available: r1(0.5), recommendedVolume: r1(0.25), rank: 3, reason: 'Hold remainder for an OTC buyer at €78+.' },
-        ]
+        { key: 'SPOT', effCost: 73.0, expectedPrice: 73.1, fillProb: 1.0, available: 999999, recommendedVolume: r1(0.4), rank: 1, reason: 'Bank a partial surplus at today’s spot, no counterparty risk.' },
+        { key: 'RFQ', effCost: 76.0, expectedPrice: 76.0, fillProb: 0.95, available: 40000, recommendedVolume: r1(0.35), rank: 2, reason: 'Sell into the rising floor over the next quarter.' },
+        { key: 'OTC', effCost: 78.0, expectedPrice: 78.0, fillProb: 0.85, available: r1(0.5), recommendedVolume: r1(0.25), rank: 3, reason: 'Hold remainder for an OTC buyer at €78+.' },
+      ]
   }
 
   // SHORT — procurement. Note: ranking blends price AND ability to fill,
   // so the cheapest per-tonne channel is not always rank 1.
   return shock
     ? [
-        { key: 'SPOT', effCost: 74.8, expectedPrice: 74.6, fillProb: 1.0, available: 999999, recommendedVolume: r1(0.26), rank: 1, reason: 'Deep & immediate — absorbs the supply the MSR pulled out of the auction.' },
-        { key: 'RFQ', effCost: 75.4, expectedPrice: 75.2, fillProb: 0.95, available: 30000, recommendedVolume: r1(0.27), rank: 2, reason: 'Flexible size to cover the former reserve before the market tightens further.' },
-        { key: 'OTC', effCost: 70.9, expectedPrice: 70.6, fillProb: 0.9, available: 24000, recommendedVolume: r1(0.19), rank: 3, reason: 'Cheapest per tonne — but only 24k available, can’t close the gap alone.' },
-        { key: 'AUCTION', effCost: 76.2, expectedPrice: 73.0, fillProb: 0.55, available: 23000, recommendedVolume: r1(0.28), rank: 4, reason: 'Lot cut −20% by the MSR; fill probability drops — bid up only for a partial fill.' },
-      ]
+      { key: 'SPOT', effCost: 74.8, expectedPrice: 74.6, fillProb: 1.0, available: 999999, recommendedVolume: r1(0.26), rank: 1, reason: 'Deep & immediate — absorbs the supply the MSR pulled out of the auction.' },
+      { key: 'RFQ', effCost: 75.4, expectedPrice: 75.2, fillProb: 0.95, available: 30000, recommendedVolume: r1(0.27), rank: 2, reason: 'Flexible size to cover the former reserve before the market tightens further.' },
+      { key: 'OTC', effCost: 70.9, expectedPrice: 70.6, fillProb: 0.9, available: 24000, recommendedVolume: r1(0.19), rank: 3, reason: 'Cheapest per tonne — but only 24k available, can’t close the gap alone.' },
+      { key: 'AUCTION', effCost: 76.2, expectedPrice: 73.0, fillProb: 0.55, available: 23000, recommendedVolume: r1(0.28), rank: 4, reason: 'Lot cut −20% by the MSR; fill probability drops — bid up only for a partial fill.' },
+    ]
     : [
-        { key: 'AUCTION', effCost: 70.1, expectedPrice: 69.8, fillProb: 0.8, available: 29000, recommendedVolume: r1(0.4), rank: 1, reason: 'Cheapest risk-adjusted route; next CAP3 in 2 days. Sealed-bid — cap the bid at €71.2.' },
-        { key: 'OTC', effCost: 70.6, expectedPrice: 69.9, fillProb: 0.9, available: 40000, recommendedVolume: r1(0.19), rank: 2, reason: 'NordCement @ €69.90 — instant settlement, counterparty rating 0.92.' },
-        { key: 'RFQ', effCost: 71.3, expectedPrice: 70.5, fillProb: 0.95, available: 30000, recommendedVolume: r1(0.12), rank: 3, reason: 'Broker quote, flexible size — ideal for the second tranche.' },
-        { key: 'SPOT', effCost: 72.4, expectedPrice: 73.1, fillProb: 1.0, available: 999999, recommendedVolume: 0, rank: 4, reason: 'Immediate but priciest. Keep as a fallback if an auction is missed.' },
-      ]
+      { key: 'AUCTION', effCost: 70.1, expectedPrice: 69.8, fillProb: 0.8, available: 29000, recommendedVolume: r1(0.4), rank: 1, reason: 'Cheapest risk-adjusted route; next CAP3 in 2 days. Sealed-bid — cap the bid at €71.2.' },
+      { key: 'OTC', effCost: 70.6, expectedPrice: 69.9, fillProb: 0.9, available: 40000, recommendedVolume: r1(0.19), rank: 2, reason: 'NordCement @ €69.90 — instant settlement, counterparty rating 0.92.' },
+      { key: 'RFQ', effCost: 71.3, expectedPrice: 70.5, fillProb: 0.95, available: 30000, recommendedVolume: r1(0.12), rank: 3, reason: 'Broker quote, flexible size — ideal for the second tranche.' },
+      { key: 'SPOT', effCost: 72.4, expectedPrice: 73.1, fillProb: 1.0, available: 999999, recommendedVolume: 0, rank: 4, reason: 'Immediate but priciest. Keep as a fallback if an auction is missed.' },
+    ]
 }
 
 /** Upcoming primary-market auctions in the planning horizon. */
@@ -358,19 +358,19 @@ function buildPlan(side: 'SHORT' | 'LONG', D: number, tranches: Tranche[], reser
   const triggers = short
     ? shock
       ? [
-          'MSR confirmed: auction lots −20% → the secondary market is now the primary route',
-          'If spot > €78 → accelerate the remaining RFQ tranche',
-          'Re-check clearing after Tue’s auction — raise the bid if under-subscription risk rises',
-        ]
-      : [
-          'If spot > €72 before the auction → pull the reserve forward',
-          'If an MSR cut tightens auction supply → re-route to spot / RFQ',
-          'If the production forecast drops → cancel the held tranche',
-        ]
-    : [
-        'If spot > €78 → release the next sell tranche',
-        'If the reform stalls → hold the remainder, the floor is still rising',
+        'MSR confirmed: auction lots −20% → the secondary market is now the primary route',
+        'If spot > €78 → accelerate the remaining RFQ tranche',
+        'Re-check clearing after Tue’s auction — raise the bid if under-subscription risk rises',
       ]
+      : [
+        'If spot > €72 before the auction → pull the reserve forward',
+        'If an MSR cut tightens auction supply → re-route to spot / RFQ',
+        'If the production forecast drops → cancel the held tranche',
+      ]
+    : [
+      'If spot > €78 → release the next sell tranche',
+      'If the reform stalls → hold the remainder, the floor is still rising',
+    ]
 
   return {
     deficitVolume: D, side, headline, action,
@@ -390,29 +390,29 @@ export function executionPlan(f: Firm, scenario: Scenario): ExecutionPlan {
   if (pos.side === 'LONG') {
     const tr: Tranche[] = shock
       ? [
-          { id: 's1', when: 'Now', channel: 'SPOT', volume: r1(0.6), price: 88.0, maxBid: null, status: 'EXECUTE', reason: 'MSR squeeze lifts secondary spot — sell surplus into strength.' },
-          { id: 's2', when: 'This week', channel: 'OTC', volume: r1(0.4), price: 87.2, maxBid: null, status: 'EXECUTE', reason: 'Bilateral buyers bidding up; lock the premium.' },
-        ]
+        { id: 's1', when: 'Now', channel: 'SPOT', volume: r1(0.6), price: 88.0, maxBid: null, status: 'EXECUTE', reason: 'MSR squeeze lifts secondary spot — sell surplus into strength.' },
+        { id: 's2', when: 'This week', channel: 'OTC', volume: r1(0.4), price: 87.2, maxBid: null, status: 'EXECUTE', reason: 'Bilateral buyers bidding up; lock the premium.' },
+      ]
       : [
-          { id: 's1', when: 'Now', channel: 'SPOT', volume: r1(0.4), price: 73.0, maxBid: null, status: 'EXECUTE', reason: 'Bank a partial surplus at today’s spot.' },
-          { id: 's2', when: 'Month 3', channel: 'RFQ', volume: r1(0.35), price: 76.0, maxBid: null, status: 'SCHEDULED', reason: 'Sell into the structural drift up.' },
-          { id: 's3', when: 'Open', channel: 'OTC', volume: r1(0.25), price: 78.0, maxBid: null, status: 'WAIT', reason: 'Hold the remainder for an €78+ target.' },
-        ]
+        { id: 's1', when: 'Now', channel: 'SPOT', volume: r1(0.4), price: 73.0, maxBid: null, status: 'EXECUTE', reason: 'Bank a partial surplus at today’s spot.' },
+        { id: 's2', when: 'Month 3', channel: 'RFQ', volume: r1(0.35), price: 76.0, maxBid: null, status: 'SCHEDULED', reason: 'Sell into the structural drift up.' },
+        { id: 's3', when: 'Open', channel: 'OTC', volume: r1(0.25), price: 78.0, maxBid: null, status: 'WAIT', reason: 'Hold the remainder for an €78+ target.' },
+      ]
     return buildPlan('LONG', D, tr, 0, scenario)
   }
 
   const tr: Tranche[] = shock
     ? [
-        { id: 't1', when: 'Tue 02 Jun', channel: 'AUCTION', volume: r1(0.28), price: 73.0, maxBid: 74.5, status: 'EXECUTE', reason: 'MSR cuts the lot −20% — bid up for the reduced auction volume.' },
-        { id: 't2', when: 'Now', channel: 'SPOT', volume: r1(0.26), price: 74.6, maxBid: null, status: 'EXECUTE', reason: 'Replace the lost auction supply on the secondary market immediately.' },
-        { id: 't3', when: 'Now', channel: 'OTC', volume: r1(0.19), price: 70.6, maxBid: null, status: 'EXECUTE', reason: 'Lock NordCement before the offer is pulled — cheapest tonne available.' },
-        { id: 't4', when: 'This week', channel: 'RFQ', volume: r1(0.27), price: 75.2, maxBid: null, status: 'EXECUTE', reason: 'Pull the former reserve forward — the market is tightening, don’t wait.' },
-      ]
+      { id: 't1', when: 'Tue 02 Jun', channel: 'AUCTION', volume: r1(0.28), price: 73.0, maxBid: 74.5, status: 'EXECUTE', reason: 'MSR cuts the lot −20% — bid up for the reduced auction volume.' },
+      { id: 't2', when: 'Now', channel: 'SPOT', volume: r1(0.26), price: 74.6, maxBid: null, status: 'EXECUTE', reason: 'Replace the lost auction supply on the secondary market immediately.' },
+      { id: 't3', when: 'Now', channel: 'OTC', volume: r1(0.19), price: 70.6, maxBid: null, status: 'EXECUTE', reason: 'Lock NordCement before the offer is pulled — cheapest tonne available.' },
+      { id: 't4', when: 'This week', channel: 'RFQ', volume: r1(0.27), price: 75.2, maxBid: null, status: 'EXECUTE', reason: 'Pull the former reserve forward — the market is tightening, don’t wait.' },
+    ]
     : [
-        { id: 't1', when: 'Tue 02 Jun', channel: 'AUCTION', volume: r1(0.4), price: 69.8, maxBid: 71.2, status: 'EXECUTE', reason: 'Cheapest risk-adjusted route — next CAP3 auction, bid ≤ €71.2.' },
-        { id: 't2', when: 'Now', channel: 'OTC', volume: r1(0.19), price: 69.9, maxBid: null, status: 'EXECUTE', reason: 'NordCement @ €69.90 — fast settlement, counterparty rating 0.92.' },
-        { id: 't3', when: 'Mon 09 Jun', channel: 'RFQ', volume: r1(0.12), price: 70.5, maxBid: null, status: 'SCHEDULED', reason: 'Broker quote, flexible size — second tranche.' },
-      ]
+      { id: 't1', when: 'Tue 02 Jun', channel: 'AUCTION', volume: r1(0.4), price: 69.8, maxBid: 71.2, status: 'EXECUTE', reason: 'Cheapest risk-adjusted route — next CAP3 auction, bid ≤ €71.2.' },
+      { id: 't2', when: 'Now', channel: 'OTC', volume: r1(0.19), price: 69.9, maxBid: null, status: 'EXECUTE', reason: 'NordCement @ €69.90 — fast settlement, counterparty rating 0.92.' },
+      { id: 't3', when: 'Mon 09 Jun', channel: 'RFQ', volume: r1(0.12), price: 70.5, maxBid: null, status: 'SCHEDULED', reason: 'Broker quote, flexible size — second tranche.' },
+    ]
   const placed = tr.reduce((s, t) => s + t.volume, 0)
   const reserve = shock ? 0 : Math.max(0, D - placed)
   return buildPlan('SHORT', D, tr, reserve, scenario)

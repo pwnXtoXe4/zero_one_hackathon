@@ -1,4 +1,4 @@
-import { ArrowUpRight, Check } from 'lucide-react'
+import { ArrowUpRight } from 'lucide-react'
 import { Card, RingGauge, AnimatedNumber } from './primitives'
 import type { Recommendation, Scenario } from '@/data/types'
 import { eurM } from '@/lib/utils'
@@ -55,17 +55,7 @@ export function RecommendationCard({ recommendation: r, scenario }: { recommenda
         </div>
       </div>
 
-      <ul className="mt-4 space-y-2">
-        {r.rationale.map((x) => (
-          <li
-            key={x}
-            className="flex items-start gap-2 text-[13px] leading-snug text-ink/85"
-          >
-            <Check size={14} className="mt-0.5 shrink-0" style={{ color }} />
-            {x}
-          </li>
-        ))}
-      </ul>
+
 
       <div className="mt-5 grid grid-cols-2 gap-3 border-t border-border pt-4">
         <Stat label="Exposure at risk" value={r.costAtRisk} color="#171C19" />

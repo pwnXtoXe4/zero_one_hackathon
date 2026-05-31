@@ -6,10 +6,6 @@ export function DriverImportance({ drivers }: { drivers: Driver[] }) {
   return (
     <Card className="bg-[#F6FCF9]" style={{ '--card-accent': '#009B72' } as React.CSSProperties}>
       <span className="label">What's moving the price · signals</span>
-      <p className="mt-1 text-[12px] leading-snug text-muted">
-        Statistical external signals from Sybilion, ranked by importance — regulatory drivers are
-        shown in the policy timeline.
-      </p>
       <div className="mt-3.5 space-y-3">
         {drivers.map((d) => {
           const color = d.direction >= 0 ? '#009B72' : '#D66A2E'

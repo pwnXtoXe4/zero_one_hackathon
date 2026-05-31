@@ -3,10 +3,15 @@ import type { LadderStep, Recommendation } from '@/data/types'
 
 export function TimingLadder({ ladder, recommendation }: { ladder: LadderStep[]; recommendation: Recommendation }) {
   const color = recommendation.action === 'BUY' ? '#D18500' : '#1E70B8'
+  const summary = ladder.map((s) => `${s.pct}% ${s.when}`).join(' · ')
   return (
     <Card>
-      <span className="label">Timing plan · when to execute</span>
-      <div className="mt-4 space-y-3.5">
+      <div className="flex items-center justify-between">
+        <span className="label">Timing plan · when to execute</span>
+        <span className="chip text-muted">{ladder.length} tranches</span>
+      </div>
+      <p className="mt-0.5 text-[11px] text-muted">{summary}</p>
+      <div className="mt-3 space-y-2.5">
         {ladder.map((s) => (
           <div
             key={s.label + s.pct}
@@ -29,7 +34,6 @@ export function TimingLadder({ ladder, recommendation }: { ladder: LadderStep[];
                   style={{ width: `${s.pct}%`, background: color }}
                 />
               </div>
-              <p className="mt-1 text-[11px] text-muted">{s.note}</p>
             </div>
           </div>
         ))}

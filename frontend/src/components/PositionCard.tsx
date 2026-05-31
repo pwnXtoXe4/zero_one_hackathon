@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { ArrowUp } from 'lucide-react'
 import { Card, ConfidenceBadge, SectorDot } from './primitives'
 import { api } from '@/data/api'
 import type { EmissionsOutlook, Firm, Position } from '@/data/types'
@@ -36,9 +35,7 @@ export function PositionCard({ firm, position }: { firm: Firm; position: Positio
         </div>
         <ConfidenceBadge c={position.confidence} />
       </div>
-      <p className="-mt-1 text-[12px] leading-snug text-muted">
-        Forecast emissions − free allocation − holdings = allowances still to buy.
-      </p>
+
 
       <div>
         <div className="flex items-end gap-2">
@@ -49,7 +46,7 @@ export function PositionCard({ firm, position }: { firm: Firm; position: Positio
             {position.side}
           </span>
         </div>
-        <p className="mt-1.5 text-[12px] text-muted">{short ? 'Must buy' : 'Can sell'} this compliance year</p>
+
       </div>
 
       {/* Summary of the real Sybilion forecast shown on the hero timeline above. */}
@@ -72,10 +69,7 @@ export function PositionCard({ firm, position }: { firm: Firm; position: Positio
             <span className="font-mono text-muted">…</span>
           )}
         </div>
-        <div className="flex items-center gap-1 border-t border-border/60 pt-2 text-[11px] text-muted">
-          <ArrowUp size={12} />
-          See the CarbonEdge timeline above for the full emissions &amp; price forecast.
-        </div>
+
       </div>
     </Card>
   )

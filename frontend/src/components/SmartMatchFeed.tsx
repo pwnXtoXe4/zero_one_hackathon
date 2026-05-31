@@ -55,7 +55,7 @@ export function SmartMatchFeed({ matches, scenario }: { matches: Match[]; scenar
                 Execute
               </button>
             </div>
-            <p className="mt-2 text-[11px] leading-snug text-muted">{m.rationale}</p>
+
           </div>
         ))}
       </div>
