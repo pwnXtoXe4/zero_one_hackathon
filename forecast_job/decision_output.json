@@ -1,0 +1,140 @@
+{
+  "evaluation_date": "2026-05-01",
+  "current_price": 79.59,
+  "forecast_trend": "DOWN",
+  "band_width_ratio": 0.22701430575837422,
+  "backtest_mape": 4.157312,
+  "forecast_points": {
+    "M1": {
+      "value": 75.597258,
+      "low": 71.630517,
+      "high": 79.563998
+    },
+    "M2": {
+      "value": 75.655294,
+      "low": 71.355081,
+      "high": 79.955507
+    },
+    "M3": {
+      "value": 75.676844,
+      "low": 68.677632,
+      "high": 82.676056
+    },
+    "M4": {
+      "value": 75.52635,
+      "low": 66.598455,
+      "high": 84.454244
+    },
+    "M5": {
+      "value": 75.458138,
+      "low": 64.477664,
+      "high": 86.438613
+    },
+    "M6": {
+      "value": 75.446113,
+      "low": 59.186212,
+      "high": 91.706015
+    }
+  },
+  "regime": {
+    "level": "GREEN",
+    "multiplier": 1.0,
+    "focus_triggered": false,
+    "cusum_triggered": false,
+    "bubble_risk": false,
+    "advisory": "No structural breaks detected. Sybilion forecast trustworthy."
+  },
+  "epu": {
+    "level": "CRISIS",
+    "value": 456.1322358598596,
+    "z_score": -0.3192117327431208,
+    "volatility_multiplier": 1.8,
+    "spike": false
+  },
+  "driver_bias": {
+    "signal": "BULLISH",
+    "bias": 0.3,
+    "reasoning": "Coal + MSCI Energy both rising (Maciejowski & Leonelli 2025: coal=+8.9%, energy=+8.9%)"
+  },
+  "structural": {
+    "signal": "BUY",
+    "tightening_score": 0.47138111850793357,
+    "balance_mt": -83.54339047104003,
+    "narrative": "EU ETS cap 2026: 1,183 Mt. Latest verified emissions (963 Mt from 2025). Market balance: -84 Mt (shortage). Cap declining at 74 Mt/year. Structural inflection (cap < last known emissions) expected by 2029. MSR absorbing 304 Mt (TNAC=1,183M, holdings=400M). Effective tightening: 304 Mt removed from market. Structural SHORTAGE: cap + MSR absorption below emissions. Expect upward price pressure over 6-12 month horizon."
+  },
+  "demand": {
+    "demand_pressure": 0.013,
+    "composite_index": 1490920683.629984,
+    "reasoning": "Composite +0.1% YoY. Cement +1.1%. High divergence (1.00). Steel, Chemicals, Food, Glass, Other, Paper stable."
+  },
+  "composite_score": 0.3123916082257483,
+  "procurement": {
+    "strategy": "FRONT_LOAD",
+    "total_tons": 80000,
+    "total_cost_expected": 6539261.079336546,
+    "cost_if_all_now": 6367200.0,
+    "expected_savings": -172061.07933654636,
+    "windows": [
+      {
+        "label": "SPOT",
+        "horizon": 1,
+        "tons": 31999,
+        "expected_price": 79.59,
+        "cost_expected": 2546800.41
+      },
+      {
+        "label": "NOW",
+        "horizon": 1,
+        "tons": 18103,
+        "expected_price": 83.07631147963038,
+        "cost_expected": 1503930.4667157487
+      },
+      {
+        "label": "M3",
+        "horizon": 3,
+        "tons": 16195,
+        "expected_price": 83.16377115079223,
+        "cost_expected": 1346837.27378708
+      },
+      {
+        "label": "M6",
+        "horizon": 6,
+        "tons": 13703,
+        "expected_price": 82.91021327143096,
+        "cost_expected": 1136118.6524584184
+      }
+    ],
+    "diagnostics": {
+      "driver_shift": 0.03,
+      "structural_shift": 0.06828286711047601,
+      "demand_shift": 0.00065,
+      "total_mean_shift": 0.09893286711047601,
+      "trend_log_return": -0.04507978494907145,
+      "trend_guard_active": false,
+      "composite_score": 0.3123916082257483,
+      "min_spot": 0.4,
+      "max_spot": 1.0,
+      "max_back": 1.0,
+      "max_single": 0.6,
+      "constraint_reasons": [
+        "Bastianin 2024 structural BUY (tighten=+0.47) -> min 30% at spot",
+        "Dai 2020 EPU CRISIS (level=CRISIS) without spike -> cap any single window @60% (force spread)",
+        "composite=+0.31 MEDIUM BULL -> require 40% at spot"
+      ],
+      "risk_lambda": 0.204
+    }
+  },
+  "budget_allocation": {
+    "total_tons_reduced": 74266.66666666666,
+    "blended_cost_per_ton": 24.236983842010776,
+    "reserve_budget": 200000.0
+  },
+  "alerts": [
+    "[EPU] EPU: 456 (CRISIS), z-score: -0.3",
+    "[DRIVERS] Coal + MSCI Energy both rising (Maciejowski & Leonelli 2025: coal=+8.9%, energy=+8.9%)",
+    "[STRUCTURAL] EU ETS cap 2026: 1,183 Mt. Latest verified emissions (963 Mt from 2025). Market balance: -84 Mt (shortage). Cap declining at 74 Mt/year. Structural inflection (cap < last known emissions) expected by 2029. MSR absorbing 304 Mt (TNAC=1,183M, holdings=400M). Effective tightening: 304 Mt removed from market. Structural SHORTAGE: cap + MSR absorption below emissions. Expect upward price pressure over 6-12 month horizon.",
+    "[DEMAND] Composite +0.1% YoY. Cement +1.1%. High divergence (1.00). Steel, Chemicals, Food, Glass, Other, Paper stable.",
+    "[PROCUREMENT] FRONT_LOAD: 80,000 tons, expected cost EUR6,539,261, savings EUR-172,061 vs spot.",
+    "[BUDGET] EUR2,000,000 allocated: 74,267 tons reduced @ EUR24/ton. EUR200,000 held in reserve."
+  ]
+}
