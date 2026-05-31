@@ -10,7 +10,7 @@ export function PositionCard({ firm, position }: { firm: Firm; position: Positio
   const annual = position.forecastEmissions
   const coverage = firm.freeAllocation + firm.holdings
   const short = position.side === 'SHORT'
-  const accent = short ? '#D97706' : '#0EA371'
+  const accent = short ? '#B7791F' : '#158765'
   const sp = SPREAD[position.confidence] ?? 0.045
 
   // Monthly CUMULATIVE emissions forecast with a widening p10–p90 band.
@@ -65,16 +65,16 @@ export function PositionCard({ firm, position }: { firm: Firm; position: Positio
                   <stop offset="100%" stopColor={accent} stopOpacity={0.05} />
                 </linearGradient>
               </defs>
-              <XAxis dataKey="label" tick={{ fill: '#94A3B8', fontSize: 9 }} tickLine={false} axisLine={false} interval={2} />
+              <XAxis dataKey="label" tick={{ fill: '#8C948F', fontSize: 9 }} tickLine={false} axisLine={false} interval={2} />
               <YAxis hide domain={[0, Math.max(annual, coverage) * 1.12]} />
               <Area dataKey="lo" stackId="b" stroke="none" fill="transparent" isAnimationActive={false} />
               <Area dataKey="span" stackId="b" stroke="none" fill="url(#emBand)" animationDuration={700} />
               <Line dataKey="p50" stroke={accent} strokeWidth={2} dot={false} animationDuration={700} />
               <ReferenceLine
                 y={coverage}
-                stroke="#64748B"
+                stroke="#626B66"
                 strokeDasharray="4 4"
-                label={{ value: 'free allocation + holdings', fill: '#64748B', fontSize: 9, position: 'insideTopLeft' }}
+                label={{ value: 'free allocation + holdings', fill: '#626B66', fontSize: 9, position: 'insideTopLeft' }}
               />
             </ComposedChart>
           </ResponsiveContainer>
@@ -82,7 +82,7 @@ export function PositionCard({ firm, position }: { firm: Firm; position: Positio
         <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted">
           <span className="flex items-center gap-1"><span className="h-0.5 w-3 rounded" style={{ background: accent }} />forecast (p50)</span>
           <span className="flex items-center gap-1"><span className="h-2 w-3 rounded-sm" style={{ background: accent + '33' }} />p10–p90 band</span>
-          <span className="flex items-center gap-1"><span className="h-0.5 w-3 rounded bg-[#64748B]" />coverage</span>
+          <span className="flex items-center gap-1"><span className="h-0.5 w-3 rounded bg-[#626B66]" />coverage</span>
         </div>
       </div>
     </Card>

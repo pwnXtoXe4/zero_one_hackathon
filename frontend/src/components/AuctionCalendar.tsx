@@ -5,7 +5,7 @@ import type { AuctionDay, Scenario } from '@/data/types'
 import { tons } from '@/lib/utils'
 
 const TYPE: Record<string, [string, string]> = {
-  CAP3: ['CAP3 · EU', '#0EA371'], GERMANY: ['Germany', '#2563EB'], POLAND: ['Poland', '#8B5CF6'],
+  CAP3: ['CAP3 · EU', '#158765'], GERMANY: ['Germany', '#2F5E8F'], POLAND: ['Poland', '#7B6F42'],
 }
 
 export function AuctionCalendar({ auctions, scenario }: { auctions: AuctionDay[]; scenario: Scenario }) {
@@ -28,16 +28,16 @@ export function AuctionCalendar({ auctions, scenario }: { auctions: AuctionDay[]
 
       <div className="mt-3.5 flex gap-3 overflow-x-auto pb-1">
         {auctions.map((a, i) => {
-          const [tag, tc] = TYPE[a.type] ?? [a.type, '#64748B']
+          const [tag, tc] = TYPE[a.type] ?? [a.type, '#626B66']
           const targeted = a.targetVolume > 0
-          const accent = a.msrAffected ? '#D97706' : targeted ? '#0EA371' : null
+          const accent = a.msrAffected ? '#B7791F' : targeted ? '#158765' : null
           return (
             <motion.div
               key={a.id + scenario}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.06, ease: [0.22, 1, 0.36, 1] }}
-              className="relative min-w-[162px] flex-1 rounded-xl border bg-surface2/50 p-3"
+              className="relative min-w-[162px] flex-1 rounded-lg border bg-surface2/55 p-3"
               style={{ borderColor: accent ? accent + '66' : undefined }}
             >
               <div className="flex items-center justify-between">
@@ -56,9 +56,9 @@ export function AuctionCalendar({ auctions, scenario }: { auctions: AuctionDay[]
                   <span className="text-muted">Volume</span>
                   <span className="font-mono text-ink">{tons(a.volume)}</span>
                 </div>
-                <div className="h-1.5 overflow-hidden rounded-full bg-surface2">
+                <div className="h-1.5 overflow-hidden rounded-sm bg-surface2">
                   <motion.div
-                    className="h-full rounded-full"
+                    className="h-full rounded-sm"
                     style={{ background: tc }}
                     initial={{ width: 0 }}
                     animate={{ width: `${(a.volume / maxVol) * 100}%` }}

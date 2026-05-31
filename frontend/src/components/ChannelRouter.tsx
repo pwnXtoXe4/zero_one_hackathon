@@ -29,7 +29,7 @@ export function ChannelRouter({ channels, scenario }: { channels: ChannelOption[
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.06, ease: [0.22, 1, 0.36, 1] }}
               className={cn(
-                'rounded-xl border p-3 transition-colors',
+                'rounded-lg border p-3 transition-colors',
                 isRouted ? 'border-border bg-surface2/40' : 'border-border/50 bg-surface2/20 opacity-70',
               )}
               style={isRouted ? { boxShadow: `inset 2.5px 0 0 ${color}` } : undefined}
@@ -51,16 +51,16 @@ export function ChannelRouter({ channels, scenario }: { channels: ChannelOption[
               </div>
 
               <div className="mt-2 flex items-center gap-3">
-                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface2">
+                <div className="h-1.5 flex-1 overflow-hidden rounded-sm bg-surface2">
                   <motion.div
-                    className="h-full rounded-full"
+                    className="h-full rounded-sm"
                     style={{ background: color }}
                     initial={{ width: 0 }}
                     animate={{ width: `${(c.recommendedVolume / maxRec) * 100}%` }}
                     transition={{ duration: 0.7, delay: 0.1 + i * 0.06 }}
                   />
                 </div>
-                <span className="w-16 shrink-0 text-right font-mono text-[12px]" style={{ color: isRouted ? color : '#94A3B8' }}>
+                <span className="w-16 shrink-0 text-right font-mono text-[12px]" style={{ color: isRouted ? color : '#8C948F' }}>
                   {isRouted ? tons(c.recommendedVolume) : '—'}
                 </span>
               </div>

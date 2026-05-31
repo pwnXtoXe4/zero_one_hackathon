@@ -14,7 +14,7 @@ body,
 
 body {
   @apply bg-bg text-ink font-sans antialiased;
-  background-image: linear-gradient(180deg, #fafbfc 0%, #f3f6fa 100%);
+  background-image: none;
   background-attachment: fixed;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
@@ -28,16 +28,16 @@ body {
 
 @layer components {
   .card {
-    @apply rounded-2xl border border-border bg-surface shadow-card;
+    @apply rounded-lg border border-border bg-surface shadow-card;
   }
   .glass {
-    @apply border border-border bg-white/80 backdrop-blur-md;
+    @apply border border-border bg-surface;
   }
   .chip {
-    @apply inline-flex items-center gap-1.5 rounded-full border border-border bg-surface2 px-2.5 py-1 text-xs font-medium text-muted;
+    @apply inline-flex items-center gap-1.5 rounded-md border border-border bg-surface2 px-2 py-1 text-xs font-medium text-muted;
   }
   .label {
-    @apply text-[11px] font-semibold uppercase tracking-[0.12em] text-muted;
+    @apply text-[11px] font-semibold uppercase tracking-normal text-muted;
   }
 }
 
@@ -46,9 +46,9 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* one family, clear hierarchy: headlines feel tighter & bolder than body */
+/* one family, clear hierarchy: dense, non-decorative terminal typography */
 .font-display {
-  letter-spacing: -0.022em;
+  letter-spacing: 0;
 }
 .label {
   font-size: 10.5px;
@@ -77,5 +77,5 @@ body {
 }
 
 .recharts-default-tooltip {
-  border-radius: 12px !important;
+  border-radius: 8px !important;
 }

@@ -21,7 +21,7 @@ function TipBox({ active, payload, label }: any) {
   const base = get('outerBase')
   const span = get('outerSpan')
   return (
-    <div className="space-y-0.5 rounded-lg border border-border bg-surface/95 px-3 py-2 text-xs shadow-card backdrop-blur-xl">
+    <div className="space-y-0.5 rounded-lg border border-border bg-surface px-3 py-2 text-xs shadow-card">
       <div className="mb-1 font-medium text-ink">{label}</div>
       {price != null && <Row k="price" v={`€${(+price).toFixed(2)}`} />}
       {p50 != null && <Row k="forecast p50" v={`€${(+p50).toFixed(1)}`} />}
@@ -35,7 +35,7 @@ function TipBox({ active, payload, label }: any) {
 function Legend({ accent }: { accent: string }) {
   return (
     <div className="flex items-center gap-4 text-[11px] text-muted">
-      <span className="flex items-center gap-1.5"><span className="h-0.5 w-4 rounded bg-[#94A3B8]" />history</span>
+      <span className="flex items-center gap-1.5"><span className="h-0.5 w-4 rounded bg-[#8C948F]" />history</span>
       <span className="flex items-center gap-1.5">
         <span className="h-0.5 w-4 rounded" style={{ background: accent, borderTop: `2px dashed ${accent}` }} />forecast p50
       </span>
@@ -52,7 +52,7 @@ export function PriceForecastChart({
   scenario: Scenario
 }) {
   const hist = history.slice(-22)
-  const accent = scenario === 'shock' ? '#D97706' : '#2563EB'
+  const accent = scenario === 'shock' ? '#B7791F' : '#2F5E8F'
 
   const data: any[] = hist.map((h) => ({ label: h.label, price: h.price }))
   const lastPrice = hist[hist.length - 1].price
@@ -96,23 +96,23 @@ export function PriceForecastChart({
                 <stop offset="100%" stopColor={accent} stopOpacity={0.12} />
               </linearGradient>
             </defs>
-            <CartesianGrid stroke="#EDF1F6" vertical={false} />
+            <CartesianGrid stroke="#E2E5DF" vertical={false} />
             <XAxis
-              dataKey="label" tick={{ fill: '#94A3B8', fontSize: 11 }} tickLine={false} axisLine={false}
+              dataKey="label" tick={{ fill: '#8C948F', fontSize: 11 }} tickLine={false} axisLine={false}
               interval={Math.ceil(data.length / 9)} minTickGap={16}
             />
             <YAxis
-              tick={{ fill: '#94A3B8', fontSize: 11 }} tickLine={false} axisLine={false} width={46}
+              tick={{ fill: '#8C948F', fontSize: 11 }} tickLine={false} axisLine={false} width={46}
               domain={['dataMin-6', 'dataMax+10']} tickFormatter={(v) => '€' + v}
             />
-            <Tooltip content={<TipBox />} cursor={{ stroke: '#CBD5E1', strokeDasharray: '3 3' }} />
+            <Tooltip content={<TipBox />} cursor={{ stroke: '#C9CEC7', strokeDasharray: '3 3' }} />
             <Area dataKey="outerBase" stackId="o" stroke="none" fill="transparent" isAnimationActive={false} />
             <Area dataKey="outerSpan" stackId="o" stroke="none" fill="url(#bandOuter)" animationDuration={700} />
             <Area dataKey="innerBase" stackId="i" stroke="none" fill="transparent" isAnimationActive={false} />
             <Area dataKey="innerSpan" stackId="i" stroke="none" fill="url(#bandInner)" animationDuration={700} />
-            <Line dataKey="price" stroke="#94A3B8" strokeWidth={2} dot={false} isAnimationActive={false} />
+            <Line dataKey="price" stroke="#8C948F" strokeWidth={2} dot={false} isAnimationActive={false} />
             <Line dataKey="p50" stroke={accent} strokeWidth={2.4} strokeDasharray="5 4" dot={false} animationDuration={700} />
-            <ReferenceLine x={todayLabel} stroke="#94A3B8" strokeDasharray="4 4" label={{ value: 'today', fill: '#94A3B8', fontSize: 10, position: 'insideTopLeft' }} />
+            <ReferenceLine x={todayLabel} stroke="#8C948F" strokeDasharray="4 4" label={{ value: 'today', fill: '#8C948F', fontSize: 10, position: 'insideTopLeft' }} />
           </ComposedChart>
         </ResponsiveContainer>
       </div>

@@ -15,14 +15,9 @@ export function AlertBanner() {
           className="overflow-hidden"
         >
           <div className="relative mx-auto max-w-[1500px] px-6 pt-4">
-            <div className="relative overflow-hidden rounded-xl border border-amber/40 bg-amber/10 px-5 py-3">
-              <motion.div
-                className="absolute inset-y-0 -left-1/3 w-1/3 bg-gradient-to-r from-transparent via-amber/20 to-transparent"
-                animate={{ x: ['0%', '400%'] }}
-                transition={{ duration: 2.2, repeat: Infinity, ease: 'linear' }}
-              />
+            <div className="relative overflow-hidden rounded-lg border border-amber/45 bg-[#FFF8E8] px-5 py-3">
               <div className="relative flex items-center gap-3">
-                <span className="grid h-8 w-8 place-items-center rounded-lg bg-amber/20">
+                <span className="grid h-8 w-8 place-items-center rounded-md border border-amber/30 bg-surface">
                   <AlertTriangle size={16} className="text-amber" />
                 </span>
                 <div className="flex-1">

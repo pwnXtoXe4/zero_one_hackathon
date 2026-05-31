@@ -18,11 +18,11 @@ import { SmartMatchFeed } from '@/components/SmartMatchFeed'
 
 const container = {
   hidden: {},
-  show: { transition: { staggerChildren: 0.07, delayChildren: 0.05 } },
+  show: { transition: { staggerChildren: 0.025, delayChildren: 0.02 } },
 }
 const item = {
-  hidden: { opacity: 0, y: 18 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] } },
+  hidden: { opacity: 0, y: 6 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.22, ease: [0.2, 0, 0.2, 1] } },
 }
 
 function Splash() {
@@ -64,7 +64,7 @@ function Dashboard() {
           {!view || !history.length ? (
             <Splash />
           ) : (
-            <motion.div variants={container} initial="hidden" animate="show" className="grid grid-cols-12 gap-4 [&_.card]:h-full">
+            <motion.div variants={container} initial="hidden" animate="show" className="grid grid-cols-12 gap-3 [&_.card]:h-full">
               {/* Row A — position · plan · market */}
               <motion.div variants={item} className="col-span-12 lg:col-span-3">
                 <PositionCard firm={view.firm} position={view.position} />

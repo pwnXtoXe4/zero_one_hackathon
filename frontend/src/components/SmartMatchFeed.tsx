@@ -9,7 +9,7 @@ function TimingPill({ timing }: { timing: 'NOW' | 'WAIT' }) {
   return (
     <span
       className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-bold"
-      style={now ? { color: '#D97706', background: '#D977061A' } : { color: '#2563EB', background: '#2563EB1A' }}
+      style={now ? { color: '#B7791F', background: '#B7791F1A' } : { color: '#2F5E8F', background: '#2F5E8F1A' }}
     >
       {now ? <Zap size={11} className="fill-current" /> : <Clock size={11} />}
       {timing}
@@ -22,7 +22,7 @@ export function SmartMatchFeed({ matches, scenario }: { matches: Match[]; scenar
     <Card className="flex flex-col">
       <div className="mb-3 flex items-center justify-between">
         <span className="label flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-sm" style={{ background: '#EA6A3A' }} />
+          <span className="h-2 w-2 rounded-sm" style={{ background: '#B45D32' }} />
           OTC desk · bilateral offers
         </span>
         <span className="chip">{matches.length} live</span>
@@ -37,7 +37,7 @@ export function SmartMatchFeed({ matches, scenario }: { matches: Match[]; scenar
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.97 }}
               transition={{ duration: 0.35, delay: i * 0.06, ease: [0.22, 1, 0.36, 1] }}
-              className="group rounded-xl border border-border bg-surface2/40 p-3 transition-colors hover:border-signal/30"
+              className="group rounded-lg border border-border bg-surface2/45 p-3 transition-colors hover:border-signal/40"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">

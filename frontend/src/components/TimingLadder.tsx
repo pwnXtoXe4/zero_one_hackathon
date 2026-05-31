@@ -3,7 +3,7 @@ import { Card } from './primitives'
 import type { LadderStep, Recommendation } from '@/data/types'
 
 export function TimingLadder({ ladder, recommendation }: { ladder: LadderStep[]; recommendation: Recommendation }) {
-  const color = recommendation.action === 'BUY' ? '#D97706' : '#2563EB'
+  const color = recommendation.action === 'BUY' ? '#B7791F' : '#2F5E8F'
   return (
     <Card>
       <span className="label">Timing plan · when to execute</span>
@@ -27,9 +27,9 @@ export function TimingLadder({ ladder, recommendation }: { ladder: LadderStep[];
                 <span className="text-sm font-medium text-ink">{s.label}</span>
                 <span className="text-[11px] text-muted">{s.when}</span>
               </div>
-              <div className="mt-1 h-1 overflow-hidden rounded-full bg-surface2">
+              <div className="mt-1 h-1 overflow-hidden rounded-sm bg-surface2">
                 <motion.div
-                  className="h-full rounded-full"
+                  className="h-full rounded-sm"
                   style={{ background: color }}
                   initial={{ width: 0 }}
                   animate={{ width: `${s.pct}%` }}

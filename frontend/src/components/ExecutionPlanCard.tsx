@@ -5,7 +5,7 @@ import type { ExecutionPlan, Scenario } from '@/data/types'
 import { eurM, tons } from '@/lib/utils'
 
 const ACTION_COLOR: Record<string, string> = {
-  BUY: '#D97706', LADDER: '#2563EB', SELL: '#0EA371', WAIT: '#0EA371',
+  BUY: '#B7791F', LADDER: '#2F5E8F', SELL: '#158765', WAIT: '#158765',
 }
 
 function Stat({ label, value, color }: { label: string; value: number; color: string }) {
@@ -21,7 +21,7 @@ function Stat({ label, value, color }: { label: string; value: number; color: st
 
 export function ExecutionPlanCard({ plan, scenario }: { plan: ExecutionPlan; scenario: Scenario }) {
   const shock = scenario === 'shock'
-  const color = shock ? '#D97706' : ACTION_COLOR[plan.action] ?? '#2563EB'
+  const color = shock ? '#B7791F' : ACTION_COLOR[plan.action] ?? '#2F5E8F'
   const total = plan.channelMix.reduce((s, m) => s + m.volume, 0) || 1
   const segs = plan.channelMix.map((m) => ({ value: m.volume, color: CHANNEL_COLOR[m.key] }))
 
@@ -74,7 +74,7 @@ export function ExecutionPlanCard({ plan, scenario }: { plan: ExecutionPlan; sce
       {/* cost summary */}
       <div className="mt-4 grid grid-cols-3 gap-3 border-t border-border pt-4">
         <Stat label="Expected spend" value={plan.expectedTotal} color="#0F172A" />
-        <Stat label="Worst case" value={plan.worstCase} color="#EA6A3A" />
+        <Stat label="Worst case" value={plan.worstCase} color="#B45D32" />
         <Stat label="Saved vs year-end" value={plan.savingsVsYearEnd} color={color} />
       </div>
 

@@ -3,8 +3,8 @@ import { cn } from '@/lib/utils'
 import type { Confidence, Sector } from '@/data/types'
 
 export const SECTOR_COLOR: Record<Sector, string> = {
-  Steel: '#64748B', Cement: '#C9A227', Chemicals: '#0EA371', Power: '#2563EB',
-  Aviation: '#8B5CF6', Refining: '#EA6A3A', Paper: '#16A34A', Glass: '#0D9488',
+  Steel: '#5B6260', Cement: '#A7832D', Chemicals: '#158765', Power: '#2F5E8F',
+  Aviation: '#6E6A3A', Refining: '#B45D32', Paper: '#4D8A46', Glass: '#327D78',
 }
 
 export function Card({ className, children, ...rest }: React.HTMLAttributes<HTMLDivElement>) {
@@ -27,12 +27,12 @@ export function SectorDot({ sector, size = 8 }: { sector: Sector; size?: number 
 
 export function ConfidenceBadge({ c }: { c: Confidence }) {
   const map: Record<Confidence, [string, string]> = {
-    high: ['High confidence', 'text-signal border-signal/30 bg-signal/10'],
-    medium: ['Medium confidence', 'text-amber border-amber/30 bg-amber/10'],
+    high: ['High confidence', 'text-signal border-signal/35 bg-signal/10'],
+    medium: ['Medium confidence', 'text-amber border-amber/35 bg-amber/10'],
     low: ['Low confidence', 'text-muted border-border bg-surface2/60'],
   }
   return (
-    <span className={cn('inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium', map[c][1])}>
+    <span className={cn('inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[11px] font-medium', map[c][1])}>
       <span className="h-1.5 w-1.5 rounded-full bg-current" />
       {map[c][0]}
     </span>
@@ -67,7 +67,7 @@ export function AnimatedNumber({
 }
 
 export function Sparkline({
-  data, width = 120, height = 34, color = '#0EA371',
+  data, width = 120, height = 34, color = '#158765',
 }: {
   data: number[]
   width?: number
@@ -99,11 +99,11 @@ export function Sparkline({
 }
 
 export const CHANNEL_COLOR: Record<string, string> = {
-  AUCTION: '#0EA371', // primary market
-  SPOT: '#2563EB', // secondary continuous
-  RFQ: '#8B5CF6', // broker request-for-quote
-  OTC: '#EA6A3A', // bilateral
-  WAIT: '#64748B', // held open
+  AUCTION: '#158765', // primary market
+  SPOT: '#2F5E8F', // secondary continuous
+  RFQ: '#7B6F42', // broker request-for-quote
+  OTC: '#B45D32', // bilateral
+  WAIT: '#626B66', // held open
 }
 
 export const CHANNEL_LABEL: Record<string, string> = {
@@ -124,7 +124,7 @@ export function Donut({
   let acc = 0
   return (
     <svg width={size} height={size} className="-rotate-90">
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#EEF1F6" strokeWidth={stroke} />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#E6E8E3" strokeWidth={stroke} />
       {segments.map((seg, i) => {
         const len = (seg.value / total) * circ
         const node = (
@@ -146,13 +146,13 @@ export function Donut({
   )
 }
 
-export function RingGauge({ pct, color = '#0EA371', size = 76 }: { pct: number; color?: string; size?: number }) {
+export function RingGauge({ pct, color = '#158765', size = 76 }: { pct: number; color?: string; size?: number }) {
   const r = (size - 10) / 2
   const c = 2 * Math.PI * r
   const off = c - (pct / 100) * c
   return (
     <svg width={size} height={size} className="-rotate-90">
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#E5E8EE" strokeWidth="6" />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#E1E4DF" strokeWidth="6" />
       <circle
         cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth="6" strokeLinecap="round"
         strokeDasharray={c} strokeDashoffset={off}

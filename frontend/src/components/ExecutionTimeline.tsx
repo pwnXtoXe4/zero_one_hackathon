@@ -32,7 +32,7 @@ export function ExecutionTimeline({ plan }: { plan: ExecutionPlan }) {
       <span className="label">Execution timeline · when &amp; through which channel</span>
 
       {/* proportional channel ribbon */}
-      <div className="mt-3 flex h-2.5 overflow-hidden rounded-full bg-surface2">
+      <div className="mt-3 flex h-2.5 overflow-hidden rounded-sm bg-surface2">
         {plan.channelMix.map((m) => (
           <motion.div
             key={m.key}
@@ -58,7 +58,7 @@ export function ExecutionTimeline({ plan }: { plan: ExecutionPlan }) {
               className="flex items-start gap-3"
             >
               <div className="flex flex-col items-center pt-1">
-                <span className="h-2.5 w-2.5 rounded-full" style={{ background: color, boxShadow: `0 0 8px ${color}` }} />
+                <span className="h-2.5 w-2.5 rounded-sm" style={{ background: color }} />
                 {i < rows.length - 1 && <span className="mt-1 h-10 w-px bg-border" />}
               </div>
               <div className="flex-1">

@@ -9,7 +9,7 @@ function Ribbon({ mix, label }: { mix: MixSlice[]; label: string }) {
   return (
     <div className="min-w-0 flex-1">
       <div className="mb-1 text-[10px] uppercase tracking-wider text-muted">{label}</div>
-      <div className="flex h-3 overflow-hidden rounded-full bg-surface2">
+      <div className="flex h-3 overflow-hidden rounded-sm bg-surface2">
         {mix.map((m) => (
           <motion.div
             key={m.key}
@@ -45,9 +45,9 @@ export function ShockDelta({ diff, active }: { diff: ScenarioDiff; active: boole
           className="overflow-hidden"
         >
           <div className="mx-auto max-w-[1500px] px-6 pt-4">
-            <div className="rounded-2xl border border-amber/30 bg-surface/60 p-4 shadow-card backdrop-blur-xl">
+            <div className="rounded-lg border border-amber/35 bg-surface p-4 shadow-card">
               <div className="mb-3 flex items-center gap-2">
-                <span className="font-display text-sm font-bold tracking-tight text-amber">ADAPTIVE RE-ROUTING</span>
+                <span className="font-display text-sm font-bold tracking-normal text-amber">ADAPTIVE RE-ROUTING</span>
                 <span className="hidden text-[12px] leading-snug text-muted md:inline">{diff.narrative}</span>
               </div>
               <div className="flex flex-col items-stretch gap-4 lg:flex-row lg:items-center">

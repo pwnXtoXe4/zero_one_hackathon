@@ -5,10 +5,10 @@ import type { Recommendation, Scenario } from '@/data/types'
 import { eurM } from '@/lib/utils'
 
 function actionColor(a: string, shock: boolean) {
-  if (a === 'BUY') return shock ? '#D97706' : '#0EA371'
-  if (a === 'LADDER') return '#2563EB'
-  if (a === 'WAIT') return '#0EA371'
-  return '#2563EB'
+  if (a === 'BUY') return shock ? '#B7791F' : '#158765'
+  if (a === 'LADDER') return '#2F5E8F'
+  if (a === 'WAIT') return '#158765'
+  return '#2F5E8F'
 }
 
 function Stat({ label, value, color }: { label: string; value: number; color: string }) {
