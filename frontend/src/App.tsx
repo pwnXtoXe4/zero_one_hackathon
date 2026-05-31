@@ -12,6 +12,7 @@ import { ExecutionPlanCard } from '@/components/ExecutionPlanCard'
 import { MarketSnapshot } from '@/components/MarketSnapshot'
 import { PriceForecastChart } from '@/components/PriceForecastChart'
 import { DriverImportance } from '@/components/DriverImportance'
+import { PolicyTimeline } from '@/components/PolicyTimeline'
 import { ChannelRouter } from '@/components/ChannelRouter'
 import { AuctionCalendar } from '@/components/AuctionCalendar'
 import { ExecutionTimeline } from '@/components/ExecutionTimeline'
@@ -88,12 +89,16 @@ function Dashboard() {
                 <ExecutionPlanCard plan={view.plan} scenario={scenario} />
               </div>
 
-              {/* Row B — forecast · drivers */}
-              <div className="col-span-12 lg:col-span-8">
+              {/* Row B — price forecast, then the two driver lenses side by side */}
+              <div className="col-span-12">
                 <PriceForecastChart history={history} forecast={view.forecast} scenario={scenario} />
               </div>
-              <div className="col-span-12 lg:col-span-4">
+              {/* What moves the price: Sybilion statistical signals vs. our ETS policy overlay */}
+              <div className="col-span-12 lg:col-span-6">
                 <DriverImportance drivers={view.drivers} />
+              </div>
+              <div className="col-span-12 lg:col-span-6">
+                <PolicyTimeline events={view.policyEvents} />
               </div>
 
               {/* Row C — channel router · auction calendar */}
@@ -132,7 +137,7 @@ function Dashboard() {
                 {src.forecastMode === 'fallback'
                   ? 'price forecast: deterministic fallback (Sybilion cache empty)'
                   : `Sybilion forecast (${src.forecastMode ?? 'cache'})`}{' '}
-                · engine-routed plan · counterparties &amp; auction calendar simulated
+                · engine-routed plan · real EEX 2026 auction calendar · counterparties simulated
               </span>
             ) : (
               <span>

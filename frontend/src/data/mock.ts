@@ -1,17 +1,17 @@
 import type {
   AuctionDay, ChannelOption, Driver, EmissionsMonth, EmissionsOutlook, ExecutionPlan, Firm,
-  ForecastPoint, HistoryPoint, LadderStep, Match, MixKey, MixSlice, Order, Position, Recommendation,
-  Scenario, ScenarioDiff, Tranche,
+  ForecastPoint, HistoryPoint, LadderStep, Match, MixKey, MixSlice, Order, PolicyEvent, Position,
+  Recommendation, Scenario, ScenarioDiff, Tranche,
 } from './types'
 import { tons } from '@/lib/utils'
 
 export const CURRENT_PRICE = 80.1
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
-// Mirrors the backend's data/mock/companies.json (same ids) so the firm
-// selector and the live /companies endpoint stay in sync.
-// Real companies (Climate TRACE v5.5 facility emissions + Heidelberg group).
-// Same ids as the backend companies.json so selector ↔ /companies stay in sync.
+// The 5 real Climate TRACE v5.5 facilities. Same ids as the backend
+// data/mock/companies.json so the firm selector ↔ /companies stay in sync.
+// These are OFFLINE-FALLBACK values only — when the backend is reachable the
+// app uses /companies + /decisions/* for the real positions and forecasts.
 export const FIRMS: Firm[] = [
   { id: 'salzgitter_steel', name: 'Salzgitter Flachstahl', sector: 'Steel', baselineEmissions: 7569792, freeAllocation: 6400000, holdings: 250000 },
   { id: 'lengerich_cement', name: 'Lengerich Cement Plant', sector: 'Cement', baselineEmissions: 846693, freeAllocation: 690000, holdings: 30000 },
@@ -154,6 +154,26 @@ export function drivers(scenario: Scenario): Driver[] {
         { name: 'Renewable auctions', importance: 18, direction: -0.5 },
         { name: 'Industrial output', importance: 15, direction: 0.5 },
       ]
+}
+
+// Honest framing for the Sybilion drivers (offline fallback mirror of the backend).
+export const DRIVER_SOURCE =
+  'Statistical external signals from Sybilion, ranked by importance — regulatory drivers are shown in the policy timeline.'
+
+// EU-ETS policy overlay — our own model of public regulatory facts (mirrors the
+// backend engine `_policy_events`). Kept separate from the Sybilion signals.
+export function policyEvents(scenario: Scenario): PolicyEvent[] {
+  const base: PolicyEvent[] = [
+    { date: '2025-09-01', period: 'Sep 2025 – Aug 2026', title: 'MSR supply intake', type: 'supply', direction: 0.8, importance: 82, detail: '275.53 Mt withdrawn from auctions into the Market Stability Reserve — the dominant structural tightening of allowance supply.', source: 'EU MSR decision (EU) 2015/1814; EEX' },
+    { date: '2026-06-01', title: 'Social Climate Fund auctioning', type: 'supply', direction: -0.4, importance: 56, detail: '+50 Mt extra allowances auctioned in 2026 (10 Mt deducted from member-state volumes), effective 1 Jun 2026 — adds near-term primary supply.', source: 'EEX revised 2026 calendar (12 May 2026); amended EU Climate Law' },
+    { date: '2026-01-01', period: '2026 → 2034 phase-in', title: 'CBAM definitive regime', type: 'regulatory', direction: 0.5, importance: 60, detail: 'CBAM financial obligations begin; ETS free allocation phases out to 2034 — structurally raises the effective carbon cost.', source: 'EU CBAM Regulation (EU) 2023/956' },
+    { date: '2026-01-01', period: 'annual', title: 'Cap reduction (LRF ~4.3%/yr)', type: 'supply', direction: 0.6, importance: 58, detail: 'Fit-for-55 linear reduction factor cuts the cap about 4.3%/yr after the 2024 rebasing — a rising structural floor under the price.', source: 'EU ETS Directive 2003/87/EC (rev. 2023)' },
+    { date: '2026-09-30', title: 'Compliance surrender deadline', type: 'demand', direction: 0.4, importance: 46, detail: 'Installations must surrender allowances for verified 2025 emissions by 30 Sep 2026 — seasonal compliance demand into Q3.', source: 'EU ETS Directive Art. 12' },
+  ]
+  if (scenario === 'shock') {
+    base.unshift({ date: '2026-06-01', title: 'MSR auction-supply cut (scenario)', type: 'supply', direction: 0.9, importance: 92, detail: 'Modelled mid-run shock: the MSR removes ~20% of auction lots — the secondary market becomes the primary procurement route.', source: 'CarbonEdge scenario (MSR mechanism)' })
+  }
+  return base.sort((a, b) => b.importance - a.importance)
 }
 
 export function recommendation(f: Firm, scenario: Scenario): Recommendation {

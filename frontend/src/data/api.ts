@@ -1,7 +1,7 @@
 import * as mock from './mock'
 import type {
   AuctionDay, ChannelOption, Driver, EmissionsOutlook, ExecutionPlan, Firm, ForecastPoint,
-  HistoryPoint, LadderStep, Match, Position, Recommendation, Scenario, ScenarioDiff,
+  HistoryPoint, LadderStep, Match, PolicyEvent, Position, Recommendation, Scenario, ScenarioDiff,
 } from './types'
 
 /**
@@ -58,6 +58,8 @@ interface ViewShape {
   diff: ScenarioDiff
   forecast: ForecastPoint[]
   drivers: Driver[]
+  driverSource?: string
+  policyEvents: PolicyEvent[]
   matches: Match[]
   currentPrice: number
   recommendation: Recommendation
@@ -158,6 +160,8 @@ function mockView(firmId: string, scenario: Scenario): ViewShape {
     diff: mock.scenarioDiff(firm),
     forecast: mock.forecast(scenario),
     drivers: mock.drivers(scenario),
+    driverSource: mock.DRIVER_SOURCE,
+    policyEvents: mock.policyEvents(scenario),
     matches: mock.matches(firm, scenario),
     currentPrice: mock.CURRENT_PRICE,
     recommendation: mock.recommendation(firm, scenario),
@@ -212,6 +216,8 @@ export const api = {
         diff: sc.diff as ScenarioDiff,
         forecast: decision.forecast as ForecastPoint[],
         drivers: decision.drivers as Driver[],
+        driverSource: decision.driverSource as string | undefined,
+        policyEvents: (decision.policyEvents as PolicyEvent[]) ?? mock.policyEvents(scenario),
         matches: decision.matches as Match[],
         currentPrice: decision.currentPrice as number,
         recommendation: deriveRecommendation(plan, firmId),

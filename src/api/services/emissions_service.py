@@ -43,12 +43,45 @@ def emissions_outlook(company_id: str) -> Optional[dict]:
 # ── builders ─────────────────────────────────────────────────────
 
 def _trace_outlook(company: dict, free: float, company_id: str) -> dict:
-    """Real Climate TRACE monthly history → 2026 cumulative band + projection."""
+    """Real Climate TRACE monthly history → 2026 cumulative band.
+
+    Forward months use the REAL Sybilion probabilistic emissions forecast
+    (p10/p50/p90) when one has been generated for this company; otherwise a
+    seasonal projection grounded in the company's own real history."""
     hist = _load_history(PREPARED_DIR / _TRACE[company_id])  # 'YYYY-MM-01' → tonnes
     actual = {int(k[5:7]): v for k, v in hist.items() if k.startswith(str(YEAR))}
     latest = max(actual) if actual else 0
-    forecast = _project(hist, latest + 1)
-    return _assemble(company, free, actual, forecast, source="climate_trace_projection")
+    syb = _sybilion_forward(company_id)
+    proj = _project(hist, latest + 1)
+    forecast = {m: (syb.get(m) or proj.get(m)) for m in range(latest + 1, 13)}
+    forecast = {m: v for m, v in forecast.items() if v}
+    source = "climate_trace_actuals + sybilion_forecast" if syb else "climate_trace_projection"
+    return _assemble(company, free, actual, forecast, source=source)
+
+
+def _sybilion_forward(company_id: str) -> dict:
+    """Real Sybilion emissions forecast for 2026 forward months, if generated.
+
+    Returns {month_int: {'p10','p50','p90'}} (tonnes), or {} when no forecast
+    file exists yet → caller falls back to the seasonal projection."""
+    path = PREPARED_DIR / f"{company_id}_emissions_forecast.json"
+    if not path.exists():
+        return {}
+    try:
+        d = json.loads(path.read_text(encoding="utf-8"))
+        fs = d.get("forecast", {}).get("data", {}).get("forecast_series", {})
+        out: dict[int, dict] = {}
+        for k, v in fs.items():
+            if not k.startswith(str(YEAR)):
+                continue
+            q = v.get("quantile_forecast", {})
+            p50 = float(q.get("0.5", v.get("forecast", 0)))
+            p10 = float(q.get("0.1", p50 * 0.95))
+            p90 = float(q.get("0.9", p50 * 1.05))
+            out[int(k[5:7])] = {"p10": p10, "p50": p50, "p90": p90}
+        return out
+    except Exception:  # noqa: BLE001
+        return {}
 
 
 def _synthetic_outlook(company: dict, free: float) -> dict:

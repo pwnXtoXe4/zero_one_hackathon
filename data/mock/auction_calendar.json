@@ -1,42 +1,83 @@
 [
   {
+    "id": "cap3-2026-06-01",
+    "auction_type": "CAP3",
+    "auction_date": "2026-06-01",
+    "window": "09:00-11:00 CET",
+    "volume": 3198500,
+    "expected_clearing_price": null,
+    "source": "EEX revised 2026 EUA auction calendar, 12 May 2026 (real per-auction volume; clearing price is model-forecast)"
+  },
+  {
     "id": "cap3-2026-06-02",
     "auction_type": "CAP3",
     "auction_date": "2026-06-02",
-    "window": "09:00-11:00",
-    "volume": 29000,
-    "expected_clearing_price": 69.80
+    "window": "09:00-11:00 CET",
+    "volume": 3198500,
+    "expected_clearing_price": null,
+    "source": "EEX revised 2026 EUA auction calendar, 12 May 2026 (real per-auction volume; clearing price is model-forecast)"
+  },
+  {
+    "id": "cap3-2026-06-04",
+    "auction_type": "CAP3",
+    "auction_date": "2026-06-04",
+    "window": "09:00-11:00 CET",
+    "volume": 3198500,
+    "expected_clearing_price": null,
+    "source": "EEX revised 2026 EUA auction calendar, 12 May 2026 (real per-auction volume; clearing price is model-forecast)"
   },
   {
     "id": "ger-2026-06-05",
     "auction_type": "GERMANY",
     "auction_date": "2026-06-05",
-    "window": "09:00-11:00",
-    "volume": 42000,
-    "expected_clearing_price": 70.10
+    "window": "09:00-11:00 CET",
+    "volume": 1000000,
+    "expected_clearing_price": null,
+    "source": "EEX revised 2026 EUA auction calendar, 12 May 2026 (real per-auction volume; clearing price is model-forecast)"
+  },
+  {
+    "id": "cap3-2026-06-08",
+    "auction_type": "CAP3",
+    "auction_date": "2026-06-08",
+    "window": "09:00-11:00 CET",
+    "volume": 3198500,
+    "expected_clearing_price": null,
+    "source": "EEX revised 2026 EUA auction calendar, 12 May 2026 (real per-auction volume; clearing price is model-forecast)"
   },
   {
     "id": "cap3-2026-06-09",
     "auction_type": "CAP3",
     "auction_date": "2026-06-09",
-    "window": "09:00-11:00",
-    "volume": 29000,
-    "expected_clearing_price": 70.50
-  },
-  {
-    "id": "cap3-2026-06-11",
-    "auction_type": "CAP3",
-    "auction_date": "2026-06-11",
-    "window": "09:00-11:00",
-    "volume": 29000,
-    "expected_clearing_price": 70.80
+    "window": "09:00-11:00 CET",
+    "volume": 3198500,
+    "expected_clearing_price": null,
+    "source": "EEX revised 2026 EUA auction calendar, 12 May 2026 (real per-auction volume; clearing price is model-forecast)"
   },
   {
     "id": "pol-2026-06-10",
     "auction_type": "POLAND",
     "auction_date": "2026-06-10",
-    "window": "09:00-11:00",
-    "volume": 18500,
-    "expected_clearing_price": 70.30
+    "window": "09:00-11:00 CET",
+    "volume": 1380000,
+    "expected_clearing_price": null,
+    "source": "EEX revised 2026 EUA auction calendar, 12 May 2026 (real per-auction volume, bi-weekly PL; clearing price is model-forecast)"
+  },
+  {
+    "id": "cap3-2026-06-11",
+    "auction_type": "CAP3",
+    "auction_date": "2026-06-11",
+    "window": "09:00-11:00 CET",
+    "volume": 3198500,
+    "expected_clearing_price": null,
+    "source": "EEX revised 2026 EUA auction calendar, 12 May 2026 (real per-auction volume; clearing price is model-forecast)"
+  },
+  {
+    "id": "ger-2026-06-12",
+    "auction_type": "GERMANY",
+    "auction_date": "2026-06-12",
+    "window": "09:00-11:00 CET",
+    "volume": 1000000,
+    "expected_clearing_price": null,
+    "source": "EEX revised 2026 EUA auction calendar, 12 May 2026 (real per-auction volume; clearing price is model-forecast)"
   }
 ]

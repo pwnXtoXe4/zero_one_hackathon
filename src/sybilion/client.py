@@ -103,7 +103,9 @@ class SybilionWrapper:
         else:
             artifacts = self._submit_live(body, max_wait, poll_interval)
 
-        self._save_cache(cache_key, artifacts)
+        # Never persist mock output to the shared cache — only real API results.
+        if self._mode != "mock":
+            self._save_cache(cache_key, artifacts)
         return artifacts
 
     def get_drivers_sync(
@@ -161,7 +163,9 @@ class SybilionWrapper:
     def _cache_key(self, series: pd.Series, keywords: list[str], horizon: int) -> str:
         """Generate a deterministic cache key from input data."""
         import hashlib
-        content = f"{series.to_dict()}|{sorted(keywords)}|{horizon}"
+        # Namespace the cache key by mode so a MOCK artifact can never be
+        # served to a LIVE caller (the bug that masqueraded mock as "live").
+        content = f"{self._mode}|{series.to_dict()}|{sorted(keywords)}|{horizon}"
         return hashlib.md5(content.encode()).hexdigest()[:12]
 
     def _save_cache(self, key: str, artifacts: ForecastArtifacts):

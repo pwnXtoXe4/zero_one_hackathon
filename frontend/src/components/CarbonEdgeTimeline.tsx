@@ -96,7 +96,7 @@ export function CarbonEdgeTimeline({
           <span className="flex items-center gap-1.5"><span className="h-2.5 w-4 rounded-sm bg-cool/25" />cumulative p10–p90</span>
           <span className="flex items-center gap-1.5"><span className="h-0.5 w-4 rounded bg-[#64748B]" style={{ borderTop: '2px dashed #64748B' }} />free allocation</span>
           {os && <span className="flex items-center gap-1.5"><span className="h-2.5 w-4 rounded-sm bg-amber/20" />overshoot zone</span>}
-          <span className="flex items-center gap-1.5"><span className="h-0.5 w-4 rounded" style={{ background: priceAccent, borderTop: `2px dashed ${priceAccent}` }} />EUA price band</span>
+          <span className="flex items-center gap-1.5"><span className="h-2.5 w-4 rounded-sm" style={{ background: priceAccent, opacity: 0.25 }} />EUA price band</span>
         </div>
       </div>
 
@@ -131,10 +131,11 @@ export function CarbonEdgeTimeline({
             <Area yAxisId="em" dataKey="cumSpan" stackId="em" stroke="none" fill="url(#emBand)" isAnimationActive={false} />
             <Line yAxisId="em" dataKey="cumP50" stroke="#2563EB" strokeWidth={2.4} dot={false} isAnimationActive={false} />
 
-            {/* EUA price band + median (right axis) */}
+            {/* EUA price band (right axis) — the dashed median line was removed as
+                redundant (it ran flat, parallel to the free-allocation line, and the
+                price now has its own dedicated forecast chart). */}
             <Area yAxisId="price" dataKey="priceBase" stackId="pr" stroke="none" fill="transparent" isAnimationActive={false} connectNulls />
             <Area yAxisId="price" dataKey="priceSpan" stackId="pr" stroke="none" fill="url(#tlPriceBand)" isAnimationActive={false} connectNulls />
-            <Line yAxisId="price" dataKey="priceP50" stroke={priceAccent} strokeWidth={2} strokeDasharray="5 4" dot={false} connectNulls isAnimationActive={false} />
 
             {/* Procurement action marker — placed before the overshoot */}
             {plan.side === 'SHORT' && securedNow > 0 && (

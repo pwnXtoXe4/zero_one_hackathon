@@ -66,7 +66,7 @@ export interface EmissionsOutlook {
   company: string
   unit: string
   year: number
-  source: 'sybilion' | 'climate_trace_projection' | 'synthetic'
+  source: 'sybilion' | 'climate_trace_actuals + sybilion_forecast' | 'climate_trace_projection' | 'synthetic'
   freeAllocation: number
   annualEmissionsP50: number
   annualDeficitP50: number
@@ -78,6 +78,20 @@ export interface Driver {
   name: string
   importance: number // 0..100
   direction: number // -1..1
+}
+
+/** A public EU-ETS policy fact with its expected sign on the EUA price.
+ *  CarbonEdge's own domain model — deliberately separate from the statistical
+ *  Sybilion `Driver`s (whose signal universe has no ETS-specific series). */
+export interface PolicyEvent {
+  date: string // YYYY-MM-DD
+  period?: string // e.g. "Sep 2025 – Aug 2026"
+  title: string
+  type: 'supply' | 'demand' | 'regulatory'
+  direction: number // -1..1 expected sign on the price
+  importance: number // 0..100
+  detail: string
+  source: string
 }
 
 export interface Recommendation {

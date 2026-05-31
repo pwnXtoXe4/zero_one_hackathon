@@ -380,6 +380,10 @@ def _build_view(company: dict, position: dict, shock: bool, passed_fc: Optional[
         "currentPrice": round(spot, 2),
         "forecastMode": art.get("mode", "fallback"),
         "forecast": points, "drivers": drivers,
+        "driverSource": ("Sybilion external signals — statistical macro & energy correlates. "
+                         "Sybilion's signal universe carries no ETS-specific policy series; "
+                         "policy drivers are modelled separately in policyEvents."),
+        "policyEvents": _policy_events(shock),
         "channels": channels, "auctions": auctions,
         "plan": plan_obj, "matches": _matches(shock),
         "position": {"deficit": round(D), "side": side, **{k: position[k] for k in
@@ -556,6 +560,50 @@ def _matches(shock: bool) -> list[dict]:
                           else f"{o.get('settlement_method','OTC')} · rating {rating:.2f}"),
         })
     return out
+
+
+# ════════════════════════════════════════════════════════════════
+#  EU-ETS policy timeline (CarbonEdge domain overlay — NOT Sybilion)
+# ════════════════════════════════════════════════════════════════
+
+def _policy_events(shock: bool) -> list[dict]:
+    """Structured EU-ETS policy facts with their expected sign on the EUA price.
+
+    This is CarbonEdge's OWN domain model of public regulatory facts — it is
+    deliberately kept separate from the Sybilion `drivers` (which are statistical
+    macro/energy correlates), because Sybilion's signal universe contains no
+    ETS-specific policy series. Every item carries a public source.
+    """
+    ev = [
+        {"date": "2025-09-01", "period": "Sep 2025 – Aug 2026", "title": "MSR supply intake",
+         "type": "supply", "direction": 0.8, "importance": 82,
+         "detail": "275.53 Mt withdrawn from auctions into the Market Stability Reserve — the dominant structural tightening of allowance supply.",
+         "source": "EU MSR decision (EU) 2015/1814; EEX"},
+        {"date": "2026-06-01", "title": "Social Climate Fund auctioning",
+         "type": "supply", "direction": -0.4, "importance": 56,
+         "detail": "+50 Mt extra allowances auctioned in 2026 (10 Mt deducted from member-state volumes), effective 1 Jun 2026 — adds near-term primary supply.",
+         "source": "EEX revised 2026 calendar (12 May 2026); amended EU Climate Law"},
+        {"date": "2026-01-01", "period": "2026 → 2034 phase-in", "title": "CBAM definitive regime",
+         "type": "regulatory", "direction": 0.5, "importance": 60,
+         "detail": "CBAM financial obligations begin; ETS free allocation phases out to 2034 — structurally raises the effective carbon cost.",
+         "source": "EU CBAM Regulation (EU) 2023/956"},
+        {"date": "2026-01-01", "period": "annual", "title": "Cap reduction (LRF ~4.3%/yr)",
+         "type": "supply", "direction": 0.6, "importance": 58,
+         "detail": "Fit-for-55 linear reduction factor cuts the cap about 4.3%/yr after the 2024 rebasing - a rising structural floor under the price.",
+         "source": "EU ETS Directive 2003/87/EC (rev. 2023)"},
+        {"date": "2026-09-30", "title": "Compliance surrender deadline",
+         "type": "demand", "direction": 0.4, "importance": 46,
+         "detail": "Installations must surrender allowances for verified 2025 emissions by 30 Sep 2026 — seasonal compliance demand into Q3.",
+         "source": "EU ETS Directive Art. 12"},
+    ]
+    if shock:
+        ev.insert(0, {
+            "date": "2026-06-01", "title": "MSR auction-supply cut (scenario)",
+            "type": "supply", "direction": 0.9, "importance": 92,
+            "detail": "Modelled mid-run shock: the MSR removes ~20% of auction lots — the secondary market becomes the primary procurement route.",
+            "source": "CarbonEdge scenario (MSR mechanism)"})
+    ev.sort(key=lambda e: -e["importance"])
+    return ev
 
 
 # ════════════════════════════════════════════════════════════════
