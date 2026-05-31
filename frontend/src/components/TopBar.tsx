@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ChevronDown, Zap, RotateCcw, Activity } from 'lucide-react'
+import { ChevronDown, Activity } from 'lucide-react'
 import { FIRMS, positionOf, CURRENT_PRICE } from '@/data/mock'
 import { api } from '@/data/api'
 import { useScenario } from '@/state/scenario'
@@ -73,24 +73,6 @@ function FirmSelector() {
   )
 }
 
-function ShockButton() {
-  const { shockActive, toggleShock } = useScenario()
-  return (
-    <button
-      onClick={toggleShock}
-      className={cn(
-        'group relative flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors',
-        shockActive
-          ? 'bg-amber text-white'
-          : 'border border-amber/45 bg-surface text-amber hover:bg-amber/10',
-      )}
-    >
-      {shockActive ? <RotateCcw size={16} /> : <Zap size={16} className="fill-amber" />}
-      {shockActive ? 'Reset market' : 'Inject MSR cut'}
-    </button>
-  )
-}
-
 function MarketTape() {
   const items = [...TAPE, ...TAPE, ...TAPE]
   return (
@@ -147,7 +129,6 @@ export function TopBar() {
 
         <div className="flex items-center gap-3">
           <FirmSelector />
-          <ShockButton />
         </div>
       </div>
       <MarketTape />
