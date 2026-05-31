@@ -71,7 +71,12 @@ export function CarbonEdgeTimeline({
   const procureMonth = execTranches.length ? trancheMonth(execTranches[0].when) : 'Jun'
   const securedNow = plan.tranches.filter((t) => t.status === 'EXECUTE').reduce((s, t) => s + t.volume, 0)
   const os = outlook.overshoot
-  const sourceLabel = outlook.source === 'sybilion' ? 'Sybilion emissions forecast' : 'illustrative emissions path'
+  const sourceLabel =
+    outlook.source === 'sybilion'
+      ? 'Sybilion emissions forecast'
+      : outlook.source === 'climate_trace_projection'
+        ? 'Climate TRACE history + seasonal projection'
+        : 'illustrative emissions path'
 
   return (
     <Card className="col-span-full">

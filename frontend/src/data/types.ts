@@ -1,5 +1,5 @@
 export type Sector =
-  | 'Steel' | 'Cement' | 'Chemicals' | 'Power' | 'Aviation' | 'Refining' | 'Paper' | 'Glass'
+  | 'Steel' | 'Cement' | 'Chemicals' | 'Power' | 'Aviation' | 'Refining' | 'Paper' | 'Glass' | 'Food'
 export type Scenario = 'baseline' | 'shock'
 export type Side = 'buy' | 'sell'
 export type Action = 'BUY' | 'WAIT' | 'LADDER' | 'SELL'

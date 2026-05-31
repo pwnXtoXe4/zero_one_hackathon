@@ -13,7 +13,7 @@ interface Ctx {
 const ScenarioContext = createContext<Ctx | null>(null)
 
 export function ScenarioProvider({ children }: { children: ReactNode }) {
-  const [firmId, setFirmId] = useState('greenchem')
+  const [firmId, setFirmId] = useState('salzgitter_steel')
   const [scenario, setScenario] = useState<Scenario>('baseline')
 
   return (

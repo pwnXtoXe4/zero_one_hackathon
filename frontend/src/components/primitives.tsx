@@ -3,7 +3,7 @@ import type { Confidence, Sector } from '@/data/types'
 
 export const SECTOR_COLOR: Record<Sector, string> = {
   Steel: '#596B75', Cement: '#C19A16', Chemicals: '#009B72', Power: '#1E70B8',
-  Aviation: '#6F5CB8', Refining: '#D66A2E', Paper: '#3F9B4F', Glass: '#00A1A7',
+  Aviation: '#6F5CB8', Refining: '#D66A2E', Paper: '#3F9B4F', Glass: '#00A1A7', Food: '#C97B3A',
 }
 
 export function Card({ className, children, ...rest }: React.HTMLAttributes<HTMLDivElement>) {

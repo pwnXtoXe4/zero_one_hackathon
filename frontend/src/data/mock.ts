@@ -10,11 +10,14 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 
 // Mirrors the backend's data/mock/companies.json (same ids) so the firm
 // selector and the live /companies endpoint stay in sync.
+// Real companies (Climate TRACE v5.5 facility emissions + Heidelberg group).
+// Same ids as the backend companies.json so selector ↔ /companies stay in sync.
 export const FIRMS: Firm[] = [
-  { id: 'greenchem', name: 'GreenChem GmbH', sector: 'Chemicals', baselineEmissions: 485000, freeAllocation: 400000, holdings: 20000 },
-  { id: 'alpine_paper', name: 'AlpinePaper GmbH', sector: 'Paper', baselineEmissions: 320000, freeAllocation: 350000, holdings: 15000 },
-  { id: 'voest_steel', name: 'Voest Alpine Stahl AG', sector: 'Steel', baselineEmissions: 1200000, freeAllocation: 900000, holdings: 150000 },
-  { id: 'heidelberg', name: 'Heidelberg Materials', sector: 'Cement', baselineEmissions: 31251000, freeAllocation: 24000000, holdings: 1500000 },
+  { id: 'salzgitter_steel', name: 'Salzgitter Flachstahl', sector: 'Steel', baselineEmissions: 7569792, freeAllocation: 6400000, holdings: 250000 },
+  { id: 'lengerich_cement', name: 'Lengerich Cement Plant', sector: 'Cement', baselineEmissions: 846693, freeAllocation: 690000, holdings: 30000 },
+  { id: 'deuna_cement', name: 'Deuna Cement Plant', sector: 'Cement', baselineEmissions: 344341, freeAllocation: 285000, holdings: 15000 },
+  { id: 'nordzucker_food', name: 'Nordzucker Klein Wanzleben', sector: 'Food', baselineEmissions: 107000, freeAllocation: 112000, holdings: 8000 },
+  { id: 'uxheim_cement', name: 'Uxheim Cement Plant', sector: 'Cement', baselineEmissions: 41375, freeAllocation: 33000, holdings: 2000 },
 ]
 
 export function positionOf(f: Firm): Position {

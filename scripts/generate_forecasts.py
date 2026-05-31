@@ -110,38 +110,6 @@ def main() -> int:
     caches = sorted(PREPARED.glob("cache_*.json"))
     print(f"  engine cache files in prepared/: {[c.name for c in caches]}")
 
-    # ── 2. Heidelberg emissions forecast (12-month) ──────────────────
-    print("\n[2/2] Heidelberg Materials emissions forecast (horizon=12)...")
-    hb = _heidelberg_series()
-    print(f"  series: {len(hb)} months {hb.index.min().date()}..{hb.index.max().date()}")
-    # Separate cache dir so the emissions cache never collides with the price
-    # cache the decision adapter globs in data/prepared.
-    w_em = SybilionWrapper(api_token=token, cache_dir=str(PREPARED / "_emissions_cache"))
-    art_em = w_em.submit_and_wait(
-        hb,
-        keywords=[
-            "cement production", "clinker output", "construction demand",
-            "industrial emissions", "EU ETS compliance", "carbon leakage",
-            "alternative fuels cement", "building materials", "infrastructure spending",
-        ],
-        horizon=12,
-        title="Heidelberg Materials Monthly CO2 Emissions (Scope 1, EU ETS)",
-        description=(
-            "Monthly CO2 emissions in kilotonnes for Heidelberg Materials cement plants under the "
-            "EU ETS. Data based on annual reports and EU ETS trajectory, disaggregated to monthly "
-            "resolution."
-        ),
-    )
-    _summarise(art_em, "HEIDELBERG")
-    (PREPARED / "heidelberg_emissions_forecast.json").write_text(
-        json.dumps(
-            _artifact_dict(art_em, w_em.mode, "emissions", company="heidelberg", unit="kt_co2"),
-            indent=2,
-        ),
-        encoding="utf-8",
-    )
-    print(f"  saved -> {PREPARED / 'heidelberg_emissions_forecast.json'}")
-
     print("\nDONE.")
     return 0
 

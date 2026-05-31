@@ -57,13 +57,16 @@ def _load_forecast(forecast_source: str) -> Optional[dict]:
             return None
 
     if forecast_source in ("cache", "mock"):
-        matches = sorted(glob.glob(str(PREPARED_DIR / "cache_*.json")))
-        if matches:
+        # Prefer the named, known-good EUA price artifact over globbing arbitrary
+        # cache_*.json files (which can include emissions caches or stale mock runs).
+        named = PREPARED_DIR / "eua_price_forecast.json"
+        candidates = [str(named)] if named.exists() else sorted(glob.glob(str(PREPARED_DIR / "cache_*.json")))
+        for path in candidates:
             try:
-                with open(matches[0], encoding="utf-8") as f:
+                with open(path, encoding="utf-8") as f:
                     return json.load(f)
             except (OSError, json.JSONDecodeError):
-                return None
+                continue
         return None
 
     return None

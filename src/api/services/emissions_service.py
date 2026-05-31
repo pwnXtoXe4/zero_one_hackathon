@@ -1,27 +1,32 @@
 """Company emissions outlook for the CarbonEdge timeline.
 
-Combines year-to-date actual monthly emissions with the forward Sybilion
-emissions forecast (p10/p50/p90), builds the CUMULATIVE band over calendar
-2026, and locates the overshoot zone where cumulative emissions cross the
-free allocation. Heidelberg uses a real Sybilion forecast; the synthetic demo
-firms get a clearly-labelled illustrative path derived from their annual figure.
+Builds the CUMULATIVE 2026 emissions band (p10/p50/p90) and locates the
+overshoot zone where cumulative emissions cross the free allocation.
 
-All values are tonnes CO2 (the forecast file is in kt and is converted here).
+Every company uses REAL measured emissions data (Climate TRACE v5.5, monthly,
+facility-level). The forward months of 2026 are a seasonal projection grounded
+in that company's own real history (level + seasonality), with a widening band.
+
+All values are tonnes CO2.
 """
 
-import csv
 import json
 from typing import Optional
 
-from src.api.services import PREPARED_DIR, RAW_DIR, company_service
+from src.api.services import PREPARED_DIR, company_service
 
 MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 YEAR = 2026
-LATEST_ACTUAL_MONTH = 5  # actuals available through May 2026
 
-_HB_FORECAST = PREPARED_DIR / "heidelberg_emissions_forecast.json"
-_HB_CSV = RAW_DIR / "synthetic" / "heidelberg_materials_monthly_emissions.csv"
-# Mild cement seasonality (low in winter, peak late summer) for synthetic firms.
+# company_id → real monthly emissions history file (Climate TRACE v5.5, tonnes CO2)
+_TRACE = {
+    "salzgitter_steel": "large_steel_salzgitter.json",
+    "lengerich_cement": "large_cement_lengerich.json",
+    "deuna_cement": "medium_cement_deuna.json",
+    "nordzucker_food": "medium_food_nordzucker.json",
+    "uxheim_cement": "small_cement_uxheim.json",
+}
+# Generic seasonal shape — only used if a company has no history file at all.
 _SEASONAL = [0.86, 0.84, 0.95, 1.02, 1.05, 1.07, 1.08, 1.09, 1.05, 1.04, 0.99, 0.96]
 
 
@@ -29,42 +34,57 @@ def emissions_outlook(company_id: str) -> Optional[dict]:
     company = company_service.get_company(company_id)
     if company is None:
         return None
-    free_allocation = float(company["free_allocation"])
-    if company_id == "heidelberg" and _HB_FORECAST.exists():
-        return _heidelberg_outlook(company, free_allocation)
-    return _synthetic_outlook(company, free_allocation)
+    free = float(company["free_allocation"])
+    if company_id in _TRACE:
+        return _trace_outlook(company, free, company_id)
+    return _synthetic_outlook(company, free)  # legacy safety net
 
 
 # ── builders ─────────────────────────────────────────────────────
 
-def _heidelberg_outlook(company: dict, free_allocation: float) -> dict:
-    actual = _hb_actuals_2026()  # {month_idx: tonnes}
-    fc = json.loads(_HB_FORECAST.read_text(encoding="utf-8"))
-    fs = fc.get("forecast", {}).get("data", {}).get("forecast_series", {})
-    forecast: dict[int, dict] = {}
-    for date_key, pt in fs.items():
-        if not date_key.startswith(str(YEAR)):
-            continue
-        mo = int(date_key[5:7])
-        q = pt.get("quantile_forecast", {})
-        p50 = float(q.get("0.50", pt.get("forecast", 0.0))) * 1000.0
-        p10 = float(q.get("0.10", p50 / 1000 * 0.9)) * 1000.0
-        p90 = float(q.get("0.90", p50 / 1000 * 1.1)) * 1000.0
-        forecast[mo] = {"p10": p10, "p50": p50, "p90": p90}
-    return _assemble(company, free_allocation, actual, forecast, source="sybilion")
+def _trace_outlook(company: dict, free: float, company_id: str) -> dict:
+    """Real Climate TRACE monthly history → 2026 cumulative band + projection."""
+    hist = _load_history(PREPARED_DIR / _TRACE[company_id])  # 'YYYY-MM-01' → tonnes
+    actual = {int(k[5:7]): v for k, v in hist.items() if k.startswith(str(YEAR))}
+    latest = max(actual) if actual else 0
+    forecast = _project(hist, latest + 1)
+    return _assemble(company, free, actual, forecast, source="climate_trace_projection")
 
 
-def _synthetic_outlook(company: dict, free_allocation: float) -> dict:
+def _synthetic_outlook(company: dict, free: float) -> dict:
     annual = float(company["forecast_emissions"])
     base = annual / sum(_SEASONAL)
-    actual = {m: base * _SEASONAL[m - 1] for m in range(1, LATEST_ACTUAL_MONTH + 1)}
-    forecast: dict[int, dict] = {}
-    for m in range(LATEST_ACTUAL_MONTH + 1, 13):
+    actual = {m: base * _SEASONAL[m - 1] for m in range(1, 6)}
+    forecast = {}
+    for m in range(6, 13):
         p50 = base * _SEASONAL[m - 1]
-        spread = 0.05 + 0.012 * (m - LATEST_ACTUAL_MONTH)  # widens with horizon
+        spread = 0.05 + 0.012 * (m - 5)
         forecast[m] = {"p10": p50 * (1 - spread), "p50": p50, "p90": p50 * (1 + spread)}
-    return _assemble(company, free_allocation, actual, forecast, source="synthetic")
+    return _assemble(company, free, actual, forecast, source="synthetic")
 
+
+# ── projection from real history (seasonal shape + recent level) ──
+
+def _project(hist: dict, start_month: int) -> dict:
+    items = sorted(hist.items())
+    vals = [v for _, v in items]
+    if not vals:
+        return {}
+    by_cal: dict[int, list] = {m: [] for m in range(1, 13)}
+    for k, v in items:
+        by_cal[int(k[5:7])].append(v)
+    overall = sum(vals) / len(vals)
+    seasonal = {m: (sum(by_cal[m]) / len(by_cal[m]) / overall) if by_cal[m] else 1.0 for m in range(1, 13)}
+    monthly_base = sum(vals[-12:]) / 12.0  # recent annual level / 12
+    out: dict[int, dict] = {}
+    for m in range(start_month, 13):
+        p50 = monthly_base * seasonal[m]
+        spread = 0.05 + 0.012 * (m - start_month + 1)  # widens with horizon
+        out[m] = {"p10": p50 * (1 - spread), "p50": p50, "p90": p50 * (1 + spread)}
+    return out
+
+
+# ── shared assembly ──────────────────────────────────────────────
 
 def _assemble(company: dict, free_allocation: float, actual: dict, forecast: dict, source: str) -> dict:
     months: list[dict] = []
@@ -106,7 +126,7 @@ def _assemble(company: dict, free_allocation: float, actual: dict, forecast: dic
 def _overshoot(months: list[dict], free_allocation: float) -> Optional[dict]:
     """Zone where the cumulative band crosses the free allocation line.
 
-    start = earliest month the upper band (p90) crosses → soonest possible overshoot.
+    start = earliest month the upper band (p90) crosses → soonest possible.
     expected = month the median (p50) crosses.
     end = month the lower band (p10) crosses → overshoot certain by here.
     """
@@ -129,11 +149,10 @@ def _overshoot(months: list[dict], free_allocation: float) -> Optional[dict]:
     }
 
 
-def _hb_actuals_2026() -> dict:
-    out: dict[int, float] = {}
-    with _HB_CSV.open(newline="", encoding="utf-8-sig") as f:
-        for r in csv.DictReader(f):
-            d = r["date"]
-            if d.startswith(str(YEAR)):
-                out[int(d[5:7])] = float(r["co2_emissions_kt"]) * 1000.0
-    return out
+# ── data loader ──────────────────────────────────────────────────
+
+def _load_history(path) -> dict:
+    """Climate TRACE prepared file → {'YYYY-MM-01': tonnes}."""
+    d = json.loads(path.read_text(encoding="utf-8"))
+    ts = d.get("timeseries", {})
+    return {k: float(v) for k, v in ts.items()}

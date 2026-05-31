@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { motion } from 'motion/react'
 import { ScenarioProvider, useScenario } from '@/state/scenario'
 import { api, getSourceState, onSourceChange, type View, type SourceState } from '@/data/api'
 import type { EmissionsOutlook, HistoryPoint } from '@/data/types'
@@ -18,6 +19,15 @@ import { ExecutionTimeline } from '@/components/ExecutionTimeline'
 import { TimingLadder } from '@/components/TimingLadder'
 import { SmartMatchFeed } from '@/components/SmartMatchFeed'
 import { OrderBook } from '@/components/OrderBook'
+
+const container = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.06, delayChildren: 0.04 } },
+}
+const item = {
+  hidden: { opacity: 0, y: 18 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] } },
+}
 
 function Splash() {
   return (
@@ -71,7 +81,6 @@ function Dashboard() {
           {!view || !history.length || !outlook ? (
             <Splash />
           ) : (
-<<<<<<< HEAD
             <motion.div variants={container} initial="hidden" animate="show" className="grid grid-cols-12 gap-4 [&_.card]:h-full">
               {/* HERO — the causal chain on one axis: emissions → overshoot → plan + price */}
               <motion.div variants={item} className="col-span-12">
@@ -88,37 +97,23 @@ function Dashboard() {
               <motion.div variants={item} className="col-span-12 lg:col-span-5">
                 <ExecutionPlanCard plan={view.plan} scenario={scenario} />
               </motion.div>
-=======
-            <div className="grid grid-cols-12 gap-3 [&_.card]:h-full">
-              {/* Row A — position · plan · market */}
-              <div className="col-span-12 lg:col-span-3">
-                <PositionCard firm={view.firm} position={view.position} />
-              </div>
-              <div className="col-span-12 lg:col-span-6">
-                <ExecutionPlanCard plan={view.plan} scenario={scenario} />
-              </div>
-              <div className="col-span-12 lg:col-span-3">
-                <MarketSnapshot history={history} forecast={view.forecast} scenario={scenario} />
-              </div>
->>>>>>> 13715d9ae121e06b585d401b19b77de167f4f3c8
 
               {/* Row B — forecast · drivers */}
-              <div className="col-span-12 lg:col-span-8">
+              <motion.div variants={item} className="col-span-12 lg:col-span-8">
                 <PriceForecastChart history={history} forecast={view.forecast} scenario={scenario} />
-              </div>
-              <div className="col-span-12 lg:col-span-4">
+              </motion.div>
+              <motion.div variants={item} className="col-span-12 lg:col-span-4">
                 <DriverImportance drivers={view.drivers} />
-              </div>
+              </motion.div>
 
               {/* Row C — channel router · auction calendar */}
-              <div className="col-span-12 lg:col-span-5">
+              <motion.div variants={item} className="col-span-12 lg:col-span-5">
                 <ChannelRouter channels={view.channels} scenario={scenario} />
-              </div>
-              <div className="col-span-12 lg:col-span-7">
+              </motion.div>
+              <motion.div variants={item} className="col-span-12 lg:col-span-7">
                 <AuctionCalendar auctions={view.auctions} scenario={scenario} />
-              </div>
+              </motion.div>
 
-<<<<<<< HEAD
               {/* Row D — execution timeline · timing ladder · market snapshot */}
               <motion.div variants={item} className="col-span-12 lg:col-span-6">
                 <ExecutionTimeline plan={view.plan} />
@@ -138,16 +133,6 @@ function Dashboard() {
                 <OrderBook orders={view.orders} />
               </motion.div>
             </motion.div>
-=======
-              {/* Row D — execution timeline · OTC desk */}
-              <div className="col-span-12 lg:col-span-7">
-                <ExecutionTimeline plan={view.plan} />
-              </div>
-              <div className="col-span-12 lg:col-span-5">
-                <SmartMatchFeed matches={view.matches} scenario={scenario} />
-              </div>
-            </div>
->>>>>>> 13715d9ae121e06b585d401b19b77de167f4f3c8
           )}
 
           <footer className="mt-8 flex items-center justify-between border-t border-border/60 pt-4 text-[11px] text-muted">

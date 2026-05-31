@@ -1,38 +1,52 @@
 [
   {
-    "id": "greenchem",
-    "name": "GreenChem GmbH",
-    "sector": "Chemicals",
-    "country": "AT",
-    "forecast_emissions": 485000,
-    "free_allocation": 400000,
-    "current_allowances": 20000
-  },
-  {
-    "id": "alpine_paper",
-    "name": "AlpinePaper GmbH",
-    "sector": "Paper",
-    "country": "AT",
-    "forecast_emissions": 320000,
-    "free_allocation": 350000,
-    "current_allowances": 15000
-  },
-  {
-    "id": "voest_steel",
-    "name": "Voest Alpine Stahl AG",
+    "id": "salzgitter_steel",
+    "name": "Salzgitter Flachstahl",
     "sector": "Steel",
-    "country": "AT",
-    "forecast_emissions": 1200000,
-    "free_allocation": 900000,
-    "current_allowances": 150000
+    "country": "DE",
+    "forecast_emissions": 7569792,
+    "free_allocation": 6400000,
+    "current_allowances": 250000,
+    "emissions_source": "Climate TRACE v5.5 (facility, monthly)"
   },
   {
-    "id": "heidelberg",
-    "name": "Heidelberg Materials",
+    "id": "lengerich_cement",
+    "name": "Lengerich Cement Plant",
     "sector": "Cement",
     "country": "DE",
-    "forecast_emissions": 31251000,
-    "free_allocation": 24000000,
-    "current_allowances": 1500000
+    "forecast_emissions": 846693,
+    "free_allocation": 690000,
+    "current_allowances": 30000,
+    "emissions_source": "Climate TRACE v5.5 (facility, monthly)"
+  },
+  {
+    "id": "deuna_cement",
+    "name": "Deuna Cement Plant",
+    "sector": "Cement",
+    "country": "DE",
+    "forecast_emissions": 344341,
+    "free_allocation": 285000,
+    "current_allowances": 15000,
+    "emissions_source": "Climate TRACE v5.5 (facility, monthly)"
+  },
+  {
+    "id": "nordzucker_food",
+    "name": "Nordzucker Klein Wanzleben",
+    "sector": "Food",
+    "country": "DE",
+    "forecast_emissions": 107000,
+    "free_allocation": 112000,
+    "current_allowances": 8000,
+    "emissions_source": "Climate TRACE v5.5 (facility, monthly)"
+  },
+  {
+    "id": "uxheim_cement",
+    "name": "Uxheim Cement Plant",
+    "sector": "Cement",
+    "country": "DE",
+    "forecast_emissions": 41375,
+    "free_allocation": 33000,
+    "current_allowances": 2000,
+    "emissions_source": "Climate TRACE v5.5 (facility, monthly)"
   }
 ]
