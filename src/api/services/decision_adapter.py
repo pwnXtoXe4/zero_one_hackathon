@@ -57,16 +57,31 @@ def _load_forecast(forecast_source: str) -> Optional[dict]:
             return None
 
     if forecast_source in ("cache", "mock"):
-        # Prefer the named, known-good EUA price artifact over globbing arbitrary
-        # cache_*.json files (which can include emissions caches or stale mock runs).
+        # Prefer the named, known-good EUA price artifact, then the raw live
+        # Sybilion dump, then any globbed cache_*.json. The engine expects the
+        # Sybilion body under a top-level "forecast" key, so a raw dump
+        # (data.forecast_series at the root) is wrapped before returning.
         named = PREPARED_DIR / "eua_price_forecast.json"
-        candidates = [str(named)] if named.exists() else sorted(glob.glob(str(PREPARED_DIR / "cache_*.json")))
+        live = PREPARED_DIR / "live_forecast.json"
+        candidates = []
+        if named.exists():
+            candidates.append(str(named))
+        if live.exists():
+            candidates.append(str(live))
+        if not candidates:
+            candidates = sorted(glob.glob(str(PREPARED_DIR / "cache_*.json")))
+
         for path in candidates:
             try:
                 with open(path, encoding="utf-8") as f:
-                    return json.load(f)
+                    data = json.load(f)
             except (OSError, json.JSONDecodeError):
                 continue
+
+            # Raw live_forecast.json dump → wrap so the engine can parse it.
+            if "forecast" not in data and "forecast_series" in data.get("data", {}):
+                return {"status": "ok", "forecast": data}
+            return data
         return None
 
     return None
