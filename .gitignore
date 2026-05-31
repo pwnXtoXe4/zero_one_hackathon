@@ -5,7 +5,7 @@
 .claude/
 __pycache__/
 *.pyc
-data/
+/data/
 sybilion/
 logs*.txt
 backtest_*.txt

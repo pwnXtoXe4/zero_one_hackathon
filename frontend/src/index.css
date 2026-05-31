@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-bg text-ink font-sans antialiased;
+  background-image: linear-gradient(180deg, #fafbfc 0%, #f3f6fa 100%);
+  background-attachment: fixed;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* grid-overlay class kept for compatibility, but kept clean (no busy texture) */
+.grid-overlay::before {
+  content: none;
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl border border-border bg-surface shadow-card;
+  }
+  .glass {
+    @apply border border-border bg-white/80 backdrop-blur-md;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-border bg-surface2 px-2.5 py-1 text-xs font-medium text-muted;
+  }
+  .label {
+    @apply text-[11px] font-semibold uppercase tracking-[0.12em] text-muted;
+  }
+}
+
+.tnum,
+.font-mono {
+  font-variant-numeric: tabular-nums;
+}
+
+/* one family, clear hierarchy: headlines feel tighter & bolder than body */
+.font-display {
+  letter-spacing: -0.022em;
+}
+.label {
+  font-size: 10.5px;
+}
+
+::selection {
+  background: rgba(14, 163, 113, 0.16);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: #d4dae3;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #c2cad6;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.recharts-default-tooltip {
+  border-radius: 12px !important;
+}
