@@ -1,7 +1,7 @@
 import { ArrowUpRight } from 'lucide-react'
 import { Card, RingGauge, AnimatedNumber } from './primitives'
 import type { Recommendation, Scenario } from '@/data/types'
-import { eurM } from '@/lib/utils'
+import { eurM, eurMSavings } from '@/lib/utils'
 
 function actionColor(a: string, shock: boolean) {
   if (a === 'BUY') return shock ? '#D18500' : '#009B72'
@@ -10,12 +10,12 @@ function actionColor(a: string, shock: boolean) {
   return '#1E70B8'
 }
 
-function Stat({ label, value, color }: { label: string; value: number; color: string }) {
+function Stat({ label, value, color, format = eurM }: { label: string; value: number; color: string; format?: (n: number) => string }) {
   return (
     <div>
       <div className="label">{label}</div>
-      <div className="mt-0.5 font-display text-xl font-bold" style={{ color }}>
-        <AnimatedNumber value={value} format={eurM} />
+      <div className="mt-0.5 font-display text-2xl font-bold" style={{ color }}>
+        <AnimatedNumber value={value} format={format} />
       </div>
     </div>
   )
@@ -59,7 +59,7 @@ export function RecommendationCard({ recommendation: r, scenario }: { recommenda
 
       <div className="mt-3 grid grid-cols-2 gap-3 border-t border-border pt-3">
         <Stat label="Exposure at risk" value={r.costAtRisk} color="#171C19" />
-        <Stat label="Saved vs naive" value={r.savingsVsNaive} color={color} />
+        <Stat label="Saved vs naive" value={r.savingsVsNaive} color={color} format={eurMSavings} />
       </div>
     </Card>
   )

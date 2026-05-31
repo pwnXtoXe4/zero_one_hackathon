@@ -60,7 +60,8 @@ def _load_forecast(forecast_source: str) -> Optional[dict]:
         # Prefer the named, known-good EUA price artifact, then the raw live
         # Sybilion dump, then any globbed cache_*.json. The engine expects the
         # Sybilion body under a top-level "forecast" key, so a raw dump
-        # (data.forecast_series at the root) is wrapped before returning.
+        # (data.forecast_series at the root) is wrapped — together with the
+        # live signals and backtest artifacts when present — before returning.
         named = PREPARED_DIR / "eua_price_forecast.json"
         live = PREPARED_DIR / "live_forecast.json"
         candidates = []
@@ -78,9 +79,31 @@ def _load_forecast(forecast_source: str) -> Optional[dict]:
             except (OSError, json.JSONDecodeError):
                 continue
 
-            # Raw live_forecast.json dump → wrap so the engine can parse it.
+            # Raw live_forecast.json dump → wrap so the engine can parse it,
+            # attaching the live signals and backtest artifacts if available.
             if "forecast" not in data and "forecast_series" in data.get("data", {}):
-                return {"status": "ok", "forecast": data}
+                signals_path = PREPARED_DIR / "live_external_signals.json"
+                backtest_path = PREPARED_DIR / "live_backtest_metrics.json"
+                signals: dict = {}
+                backtest: dict = {}
+                if signals_path.exists():
+                    try:
+                        with open(signals_path, encoding="utf-8") as sf:
+                            signals = json.load(sf)
+                    except (OSError, json.JSONDecodeError):
+                        pass
+                if backtest_path.exists():
+                    try:
+                        with open(backtest_path, encoding="utf-8") as bf:
+                            backtest = json.load(bf)
+                    except (OSError, json.JSONDecodeError):
+                        pass
+                return {
+                    "status": "ok",
+                    "forecast": data,
+                    "signals": signals,
+                    "backtest": backtest,
+                }
             return data
         return None
 

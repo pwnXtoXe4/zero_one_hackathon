@@ -179,30 +179,31 @@ export function policyEvents(scenario: Scenario): PolicyEvent[] {
 export function recommendation(f: Firm, scenario: Scenario): Recommendation {
   const pos = positionOf(f)
   const vol = Math.abs(pos.deficit)
+  const plan = executionPlan(f, scenario)
   if (pos.side === 'LONG') {
     return scenario === 'shock'
       ? {
-        action: 'WAIT', headline: 'HOLD surplus — sell into the spike', lockNowPct: 0, confidence: 'high',
-        rationale: ['Reform shock lifts EUA to €121 (p50, +66%)', 'Your surplus gains value every week held', 'Sell laddered above €110'],
-        costAtRisk: vol * CURRENT_PRICE, savingsVsNaive: vol * (121 - CURRENT_PRICE),
-      }
+          action: 'WAIT', headline: 'HOLD surplus — sell into the spike', lockNowPct: 0, confidence: 'high',
+          rationale: ['Reform shock lifts EUA to €121 (p50, +66%)', 'Your surplus gains value every week held', 'Sell laddered above €110'],
+          costAtRisk: plan.expectedTotal, savingsVsNaive: plan.savingsVsNaive ?? plan.savingsVsBuyAllNow,
+        }
       : {
-        action: 'WAIT', headline: 'HOLD surplus — structural drift up', lockNowPct: 0, confidence: 'medium',
-        rationale: ['Cap tightens −4.2%/yr → rising floor', 'Forecast drifts to €79 by Oct', 'Sell partial above €78'],
-        costAtRisk: vol * CURRENT_PRICE, savingsVsNaive: vol * (79 - CURRENT_PRICE),
-      }
+          action: 'WAIT', headline: 'HOLD surplus — structural drift up', lockNowPct: 0, confidence: 'medium',
+          rationale: ['Cap tightens −4.2%/yr → rising floor', 'Forecast drifts to €83 by Oct', 'Sell partial above €82'],
+          costAtRisk: plan.expectedTotal, savingsVsNaive: plan.savingsVsNaive ?? plan.savingsVsBuyAllNow,
+        }
   }
   return scenario === 'shock'
     ? {
-      action: 'BUY', headline: 'BUY 100% NOW — lock before the reform spike', lockNowPct: 100, confidence: 'high',
-      rationale: ['EU accelerates ETS cap −20% → p50 €121 by Oct', 'Confidence band narrowed after policy confirmation', `Each month of delay ≈ €${Math.round((vol * 8) / 1e6)}M extra`],
-      costAtRisk: vol * CURRENT_PRICE, savingsVsNaive: vol * (121 - CURRENT_PRICE) * 0.7,
-    }
+        action: 'BUY', headline: 'BUY 100% NOW — lock before the reform spike', lockNowPct: 100, confidence: 'high',
+        rationale: ['EU accelerates ETS cap −20% → p50 €121 by Oct', 'Confidence band narrowed after policy confirmation', `Each month of delay ≈ €${Math.round((vol * 8) / 1e6)}M extra`],
+        costAtRisk: plan.expectedTotal, savingsVsNaive: plan.savingsVsNaive ?? plan.savingsVsBuyAllNow,
+      }
     : {
-      action: 'LADDER', headline: 'BUY 60% NOW, ladder the rest', lockNowPct: 60, confidence: 'medium',
-      rationale: ['Trajectory up €73 → €79 (p50)', 'Near-term band narrow, month 6 wide', '“EU ETS reform” driver importance rising'],
-      costAtRisk: vol * CURRENT_PRICE, savingsVsNaive: vol * (BASE_P50[BASE_P50.length - 1] - CURRENT_PRICE),
-    }
+        action: 'LADDER', headline: 'BUY 60% NOW, ladder the rest', lockNowPct: 60, confidence: 'medium',
+        rationale: ['Trajectory up €73 → €79 (p50)', 'Near-term band narrow, month 6 wide', '“EU ETS reform” driver importance rising'],
+        costAtRisk: plan.expectedTotal, savingsVsNaive: plan.savingsVsNaive ?? plan.savingsVsBuyAllNow,
+      }
 }
 
 export function matches(f: Firm, scenario: Scenario): Match[] {
@@ -343,7 +344,8 @@ function buildPlan(side: 'SHORT' | 'LONG', D: number, tranches: Tranche[], reser
   const expectedTotal = Math.round(placedSpend + reserve * fcEnd)
   const worstCase = Math.round(expectedTotal * (shock ? 1.16 : 1.11))
   const savingsVsBuyAllNow = Math.round(Math.abs(D * CURRENT_PRICE - expectedTotal))
-  const savingsVsYearEnd = Math.round(Math.abs(D * fcEnd - expectedTotal))
+  const savingsVsYearEnd = Math.round(Math.max(0, D * fcEnd - expectedTotal))
+  const savingsVsNaive = savingsVsYearEnd // naive = procrastinate until year-end
 
   const short = side === 'SHORT'
   const action = short ? (shock ? 'BUY' : 'LADDER') : 'SELL'
@@ -376,7 +378,7 @@ function buildPlan(side: 'SHORT' | 'LONG', D: number, tranches: Tranche[], reser
     deficitVolume: D, side, headline, action,
     confidence: shock ? 'high' : 'medium',
     channelMix, tranches,
-    expectedTotal, worstCase, savingsVsBuyAllNow, savingsVsYearEnd, triggers,
+    expectedTotal, worstCase, savingsVsBuyAllNow, savingsVsNaive, savingsVsYearEnd, triggers,
   }
 }
 

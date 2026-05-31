@@ -52,6 +52,15 @@ export function PriceForecastChart({
   const hist = history.slice(-22)
   const accent = scenario === 'shock' ? '#D18500' : '#1E70B8'
 
+  if (!hist.length || !forecast.length) {
+    return (
+      <Card className="col-span-full bg-[#F8FBFF]" style={{ '--card-accent': accent } as React.CSSProperties}>
+        <span className="label">EUA price · history &amp; probabilistic forecast</span>
+        <div className="mt-3 text-sm text-muted">Forecast unavailable — no forecast points returned by the engine.</div>
+      </Card>
+    )
+  }
+
   const data: any[] = hist.map((h) => ({ label: h.label, price: h.price }))
   const lastPrice = hist[hist.length - 1].price
   data[data.length - 1] = { ...data[data.length - 1], p50: lastPrice, outerBase: lastPrice, outerSpan: 0, innerBase: lastPrice, innerSpan: 0 }
