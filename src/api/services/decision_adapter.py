@@ -14,16 +14,6 @@ from fastapi import HTTPException
 
 from src.api.services import PREPARED_DIR, company_service, forecast_service
 
-SCENARIO_EVENTS = [
-    "msr_auction_cut",
-    "ets_cap_accelerated",
-    "ets_cap_loosened",
-    "gas_price_spike",
-    "industrial_demand_drop",
-    "cbam_accelerated",
-    "renewable_energy_boom",
-]
-
 _MARKET_DATA_LINKS = {
     "auctions": "/market/auctions",
     "sell_offers": "/market/sell-offers",
@@ -144,51 +134,6 @@ def run_decision(company_id: str, forecast_source: str = "cache") -> dict:
             "available_market_data": _MARKET_DATA_LINKS,
             "engine": {"connected": False},
         }
-
-
-def run_scenario(
-    company_id: str, event: str, forecast_source: str = "cache"
-) -> dict:
-    """Run a baseline -> event -> diff scenario via the engine if available."""
-    company = _require_company(company_id)
-    position = company_service.compute_position(company)
-    forecast = _load_forecast(forecast_source)
-
-    try:
-        from src.engine.agent import CarbonEdgeAgent  # type: ignore
-        from src.engine.agent import ScenarioManager  # type: ignore
-
-        agent = CarbonEdgeAgent()
-        manager = ScenarioManager(agent)
-        result = manager.run_scenario(
-            company=company,
-            position=position,
-            forecast=forecast,
-            event=event,
-            forecast_source=forecast_source,
-        )
-        return {
-            "status": "ok",
-            "company_id": company_id,
-            "event": event,
-            "forecast_source": forecast_source,
-            "position": _position_payload(position),
-            "scenario": result,
-            "engine": {"connected": True},
-        }
-    except (ImportError, AttributeError):
-        return {
-            "status": "mock_engine_not_connected",
-            "company_id": company_id,
-            "event": event,
-            "message": (
-                "Scenario engine not available. Expected: from src.engine.agent "
-                "import CarbonEdgeAgent with ScenarioManager"
-            ),
-            "engine": {"connected": False},
-            "available_events": SCENARIO_EVENTS,
-        }
-
 
 def _position_payload(position: dict[str, Any]) -> dict:
     """Trim the full position summary to the fields the engine contract expects."""

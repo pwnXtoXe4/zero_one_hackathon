@@ -27,29 +27,10 @@ from carbonedge.mac_curve import build_mac_curve
 from carbonedge.config import COMPANY_PROFILE, CARBON_EXPOSURE
 from carbonedge.regime_detector import RegimeMonitor
 from carbonedge.enhancement.company_risk import CompanyRiskLayer
-from carbonedge.adaptive import (
-    ScenarioShift,
-    ACCELERATED_ETS_REFORM,
-    CBAM_ACCELERATION,
-    ENERGY_PRICE_CRASH,
-    recalculate_after_shift,  # noqa: F401  (exposed for the engine teammate)
-)
-
 # market data for the presentation-only cards (not part of the decision)
 from src.api.services import market_service
 
 MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-
-# msr_auction_cut / ets_cap_accelerated → tighter supply ; cbam → CBAM ; renewable → crash
-SCENARIO_MAP: dict[str, Optional[ScenarioShift]] = {
-    "msr_auction_cut": ACCELERATED_ETS_REFORM,
-    "ets_cap_accelerated": ACCELERATED_ETS_REFORM,
-    "ets_cap_loosened": None,
-    "gas_price_spike": None,
-    "industrial_demand_drop": None,
-    "cbam_accelerated": CBAM_ACCELERATION,
-    "renewable_energy_boom": ENERGY_PRICE_CRASH,
-}
 
 _CONFIDENCE = {"GREEN": "high", "YELLOW": "medium", "RED": "low"}
 _DRIVER_SIGN = {
@@ -98,7 +79,7 @@ def _clean(name: str) -> str:
 
 # ── forecast band (presentation parse of the 19 Sybilion quantiles) ──
 
-def _forecast_points(forecast_dict: dict, mult: float = 1.0, band: float = 1.0) -> list[dict]:
+def _forecast_points(forecast_dict: dict) -> list[dict]:
     fs = (forecast_dict or {}).get("forecast", {}).get("data", {}).get("forecast_series", {})
     out: list[dict] = []
     for d in sorted(fs.keys()):
@@ -117,11 +98,9 @@ def _forecast_points(forecast_dict: dict, mult: float = 1.0, band: float = 1.0) 
             "p75": _q(q, "0.75", default=p50 + (p90 - p50) * 0.55),
             "p95": _q(q, "0.95", default=p50 + (p90 - p50) * 1.25),
         }
-        # scenario shift: scale the level by `mult`, the spread by `band`
-        shifted = {k: p50 * mult + (v - p50) * band * mult for k, v in raw.items()}
         mo = int(d[5:7])
         out.append({"month": d[:7], "label": MONTHS[mo - 1],
-                    **{k: round(v, 1) for k, v in shifted.items()}})
+                    **{k: round(v, 1) for k, v in raw.items()}})
     return out[:6]
 
 
@@ -174,7 +153,7 @@ def _channel_for(horizon: int) -> str:
     return "SPOT" if horizon <= 1 else "AUCTION"
 
 
-def _plan_from_decision(decision: EnhancedDecision, D: float, side: str, shock: bool,
+def _plan_from_decision(decision: EnhancedDecision, D: float, side: str,
                         forecast_points: list[dict] | None = None) -> dict:
     proc = decision.procurement
     strat = proc.strategy
@@ -281,7 +260,7 @@ def _channel_reason(key: str) -> str:
     }.get(key, "")
 
 
-def _auctions_view(plan: dict, points: list[dict], side: str, shock: bool) -> list[dict]:
+def _auctions_view(plan: dict, points: list[dict], side: str) -> list[dict]:
     target = sum(m["volume"] for m in plan["channelMix"] if m["key"] == "AUCTION")
     allocated = 0.0
     out = []
@@ -290,34 +269,31 @@ def _auctions_view(plan: dict, points: list[dict], side: str, shock: bool) -> li
         p50 = _interp(points, d[:7], "p50")
         p75 = _interp(points, d[:7], "p75")
         clearing = a.get("expected_clearing_price") or p50
-        if shock:
-            clearing = round(clearing * 1.04, 1)
         tv = 0.0
         if side == "SHORT" and allocated < target:
-            tv = min(float(a["volume"]) * (0.8 if shock else 1.0), target - allocated)
+            tv = min(float(a["volume"]), target - allocated)
             allocated += tv
         out.append({
             "id": a["id"], "type": a["auction_type"], "date": d, "label": _fmt_date(d),
-            "volume": round(float(a["volume"]) * (0.8 if shock else 1.0)),
+            "volume": round(float(a["volume"])),
             "expectedClearing": round(clearing, 1),
-            "recommendedBid": round(p75 + (3.2 if shock else 0.0), 1) if (side == "SHORT") else None,
+            "recommendedBid": round(p75, 1) if (side == "SHORT") else None,
             "targetVolume": round(tv),
-            "msrAffected": shock,
+            "msrAffected": False,
         })
     return out[:8]
 
 
-def _matches_view(shock: bool) -> list[dict]:
+def _matches_view() -> list[dict]:
     out = []
     for o in market_service.get_sell_offers():
         rating = float(o.get("counterparty_rating", 0.9))
         out.append({
             "id": o["id"], "counterparty": o["seller_name"],
             "counterpartySector": _sector_of(o["seller_name"]), "side": "buy",
-            "volume": int(o["volume"]), "price": round(float(o["price_per_eua"]) + (0.6 if shock else 0.0), 2),
-            "timing": "NOW" if shock else "WAIT", "fit": round(rating * 100),
-            "rationale": ("Lock before the squeeze — offer may be pulled" if shock
-                          else f"{o.get('settlement_method', 'OTC')} · rating {rating:.2f}"),
+            "volume": int(o["volume"]), "price": round(float(o["price_per_eua"]), 2),
+            "timing": "WAIT", "fit": round(rating * 100),
+            "rationale": f"{o.get('settlement_method', 'OTC')} · rating {rating:.2f}",
         })
     return out
 
@@ -345,13 +321,11 @@ def _regime_monitor(prices: list[float]) -> RegimeMonitor:
 #  Core: run the real pipeline + assemble the view
 # ════════════════════════════════════════════════════════════════
 
-def _build_view(company: dict, position: dict, forecast: Optional[dict], shift: Optional[ScenarioShift]) -> dict:
-    shock = shift is not None
+def _build_view(company: dict, position: dict, forecast: Optional[dict]) -> dict:
     forecast = forecast or {}
     hist = _eua_history()
     prices = [p for _, p in hist]
-    base_spot = prices[-1] if prices else 80.0
-    current = (shift.new_ets_price if shift and shift.new_ets_price else base_spot)
+    current = prices[-1] if prices else 80.0
 
     net = float(position.get("net_position", 0))
     side = "SHORT" if net < 0 else "LONG"
@@ -365,8 +339,6 @@ def _build_view(company: dict, position: dict, forecast: Optional[dict], shift: 
         external_signals=forecast.get("signals"),
         backtest_metrics=forecast.get("backtest"),
     )
-    if shift is not None:
-        fr = shift.apply_to_forecast(fr)
     fr.current_value = current
 
     decision: EnhancedDecision = run_decision_agent(
@@ -381,11 +353,9 @@ def _build_view(company: dict, position: dict, forecast: Optional[dict], shift: 
         evaluation_date=date.today().isoformat(),
     )
 
-    mult = shift.ets_forecast_multiplier if shift else 1.0
-    band = shift.confidence_band_shrink if shift else 1.0
-    points = _forecast_points(forecast, mult=mult, band=band)
+    points = _forecast_points(forecast)
     drivers = _drivers(forecast)
-    plan = _plan_from_decision(decision, D, side, shock, forecast_points=points)
+    plan = _plan_from_decision(decision, D, side, forecast_points=points)
 
     mode = forecast.get("mode", "cache" if forecast.get("forecast") else "fallback")
     return {
@@ -395,8 +365,8 @@ def _build_view(company: dict, position: dict, forecast: Optional[dict], shift: 
         "drivers": drivers,
         "driverSource": f"Sybilion external_signals ({mode})" if drivers else None,
         "channels": _channels_view(plan, points, side),
-        "auctions": _auctions_view(plan, points, side, shock),
-        "matches": _matches_view(shock),
+        "auctions": _auctions_view(plan, points, side),
+        "matches": _matches_view(),
         "plan": plan,
         "position": {
             "deficit": round(D), "side": side,
@@ -425,20 +395,6 @@ def _build_view(company: dict, position: dict, forecast: Optional[dict], shift: 
         },
     }
 
-
-def _diff(event: str, baseline: dict, shocked: dict, shift: Optional[ScenarioShift]) -> dict:
-    extra = max(0, shocked["plan"]["expectedTotal"] - baseline["plan"]["expectedTotal"])
-    return {
-        "event": event,
-        "mixBefore": baseline["plan"]["channelMix"],
-        "mixAfter": shocked["plan"]["channelMix"],
-        "timingShiftDays": -21 if shift else 0,
-        "extraCostIfNoAdapt": round(extra),
-        "savingsFromAdapting": round(abs(shocked["plan"]["worstCase"] - shocked["plan"]["expectedTotal"])),
-        "narrative": shift.description if shift else "Scenario not modelled — baseline carried through unchanged.",
-    }
-
-
 # ════════════════════════════════════════════════════════════════
 #  Public API (the decision_adapter contract)
 # ════════════════════════════════════════════════════════════════
@@ -448,21 +404,4 @@ class CarbonEdgeAgent:
 
     def run(self, company: dict, position: dict, forecast: Optional[dict] = None,
             forecast_source: str = "cache") -> dict:
-        return _build_view(company, position, forecast, shift=None)
-
-
-class ScenarioManager:
-    def __init__(self, agent: CarbonEdgeAgent):
-        self.agent = agent
-
-    def run_scenario(self, company: dict, position: dict, forecast: Optional[dict],
-                     event: str, forecast_source: str = "cache") -> dict:
-        baseline = _build_view(company, position, forecast, shift=None)
-        shift = SCENARIO_MAP.get(event)
-        shocked = _build_view(company, position, forecast, shift=shift) if shift else baseline
-        return {
-            "event": event,
-            "baseline": baseline,
-            "shocked": shocked,
-            "diff": _diff(event, baseline, shocked, shift),
-        }
+        return _build_view(company, position, forecast)

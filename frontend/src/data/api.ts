@@ -7,10 +7,9 @@ import type {
 /**
  * BACKEND INTEGRATION
  * ───────────────────
- * Talks to the CarbonEdge FastAPI backend. A single POST to
- * `/decisions/scenario` returns baseline + shocked + diff (computed by the
- * src/engine execution optimizer on the live Sybilion forecast). If the
- * backend is unreachable or the engine is not connected, every call falls
+ * Talks to the CarbonEdge FastAPI backend. A single POST to `/decisions/run`
+ * returns the engine-routed procurement plan on the live Sybilion forecast. If
+ * the backend is unreachable or the engine is not connected, every call falls
  * back to the local mock (identical shape), so the UI never breaks on stage.
  *
  * Override the base URL with VITE_API_BASE.
@@ -187,6 +186,18 @@ function mockView(firmId: string, scenario: Scenario): ViewShape {
   }
 }
 
+function baselineDiff(plan: ExecutionPlan): ScenarioDiff {
+  return {
+    event: 'baseline',
+    mixBefore: plan.channelMix,
+    mixAfter: plan.channelMix,
+    timingShiftDays: 0,
+    extraCostIfNoAdapt: 0,
+    savingsFromAdapting: 0,
+    narrative: 'Baseline engine plan; no simulation applied.',
+  }
+}
+
 export const api = {
   async getFirms(): Promise<Firm[]> {
     try {
@@ -215,13 +226,12 @@ export const api = {
 
   async getView(firmId: string, scenario: Scenario): Promise<ViewShape> {
     try {
-      const [company, scen] = await Promise.all([
+      const [company, run] = await Promise.all([
         jget(`/companies/${firmId}`),
-        jpost('/decisions/scenario', { company_id: firmId, event: 'msr_auction_cut', forecast_source: 'cache' }),
+        jpost('/decisions/run', { company_id: firmId, forecast_source: 'cache' }),
       ])
-      const sc = scen.scenario
-      if (!sc || !sc.baseline) throw new Error('engine not connected: no scenario payload')
-      const decision = scenario === 'shock' ? sc.shocked : sc.baseline
+      const decision = run.decision
+      if (!decision) throw new Error('engine not connected: no decision payload')
       setSource({ source: 'live', forecastMode: decision.forecastMode })
       const plan = decision.plan as ExecutionPlan
       return {
@@ -230,7 +240,7 @@ export const api = {
         plan,
         channels: decision.channels as ChannelOption[],
         auctions: decision.auctions as AuctionDay[],
-        diff: sc.diff as ScenarioDiff,
+        diff: baselineDiff(plan),
         forecast: decision.forecast as ForecastPoint[],
         drivers: decision.drivers as Driver[],
         driverSource: decision.driverSource as string | undefined,
