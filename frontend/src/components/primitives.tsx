@@ -1,4 +1,3 @@
-import { useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 import type { Confidence, Sector } from '@/data/types'
 
@@ -40,30 +39,12 @@ export function ConfidenceBadge({ c }: { c: Confidence }) {
 }
 
 export function AnimatedNumber({
-  value, format, duration = 900,
+  value, format,
 }: {
   value: number
   format: (n: number) => string
-  duration?: number
 }) {
-  const [display, setDisplay] = useState(value)
-  const from = useRef(value)
-  useEffect(() => {
-    const start = performance.now()
-    const a = from.current
-    const b = value
-    let raf = 0
-    const tick = (t: number) => {
-      const k = Math.min(1, (t - start) / duration)
-      const e = 1 - Math.pow(1 - k, 3)
-      setDisplay(a + (b - a) * e)
-      if (k < 1) raf = requestAnimationFrame(tick)
-      else from.current = b
-    }
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
-  }, [value, duration])
-  return <span className="tnum">{format(display)}</span>
+  return <span className="tnum">{format(value)}</span>
 }
 
 export function Sparkline({
@@ -94,8 +75,8 @@ export function Sparkline({
         </linearGradient>
       </defs>
       <polyline points={`0,${height} ${pts.join(' ')} ${width},${height}`} fill={`url(#${id})`} stroke="none" />
-      <polyline className="sparkline-path" points={pts.join(' ')} fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      <circle className="spark-dot" cx={lastX} cy={lastY} r="2.7" fill={color} />
+      <polyline points={pts.join(' ')} fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={lastX} cy={lastY} r="2.7" fill={color} />
     </svg>
   )
 }
@@ -136,9 +117,6 @@ export function Donut({
             stroke={seg.color} strokeWidth={stroke} strokeLinecap="butt"
             strokeDasharray={`${Math.max(0, len - 1.5)} ${circ - Math.max(0, len - 1.5)}`}
             strokeDashoffset={-acc}
-            style={{
-              transition: 'stroke-dasharray .85s cubic-bezier(.22,1,.36,1), stroke-dashoffset .85s cubic-bezier(.22,1,.36,1), stroke .4s',
-            }}
           />
         )
         acc += len
@@ -158,7 +136,6 @@ export function RingGauge({ pct, color = '#009B72', size = 76 }: { pct: number; 
       <circle
         cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth="6" strokeLinecap="round"
         strokeDasharray={c} strokeDashoffset={off}
-        style={{ transition: 'stroke-dashoffset 0.9s cubic-bezier(0.22,1,0.36,1)' }}
       />
     </svg>
   )

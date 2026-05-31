@@ -1,4 +1,3 @@
-import { motion } from 'motion/react'
 import { Card, CHANNEL_COLOR, CHANNEL_LABEL } from './primitives'
 import type { ChannelOption, Scenario } from '@/data/types'
 import { cn, tons } from '@/lib/utils'
@@ -18,16 +17,12 @@ export function ChannelRouter({ channels, scenario }: { channels: ChannelOption[
       </p>
 
       <div className="space-y-2">
-        {channels.map((c, i) => {
+        {channels.map((c) => {
           const color = CHANNEL_COLOR[c.key]
           const isRouted = c.recommendedVolume > 0
           return (
-            <motion.div
+            <div
               key={c.key + scenario}
-              layout
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.06, ease: [0.22, 1, 0.36, 1] }}
               className={cn(
                 'rounded-lg border p-3 transition-colors',
                 isRouted ? 'border-border bg-surface2/40' : 'border-border/50 bg-surface2/20 opacity-70',
@@ -52,12 +47,9 @@ export function ChannelRouter({ channels, scenario }: { channels: ChannelOption[
 
               <div className="mt-2 flex items-center gap-3">
                 <div className="h-1.5 flex-1 overflow-hidden rounded-sm bg-surface2">
-                  <motion.div
+                  <div
                     className="flow-bar h-full rounded-sm"
-                    style={{ background: color }}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${(c.recommendedVolume / maxRec) * 100}%` }}
-                    transition={{ duration: 0.7, delay: 0.1 + i * 0.06 }}
+                    style={{ width: `${(c.recommendedVolume / maxRec) * 100}%`, background: color }}
                   />
                 </div>
                 <span className="w-16 shrink-0 text-right font-mono text-[12px]" style={{ color: isRouted ? color : '#7D8983' }}>
@@ -66,7 +58,7 @@ export function ChannelRouter({ channels, scenario }: { channels: ChannelOption[
               </div>
 
               <p className="mt-1.5 text-[11px] leading-snug text-muted">{c.reason}</p>
-            </motion.div>
+            </div>
           )
         })}
       </div>

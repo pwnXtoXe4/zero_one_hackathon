@@ -1,4 +1,3 @@
-import { motion } from 'motion/react'
 import { ArrowUpRight, Check } from 'lucide-react'
 import { Card, RingGauge, AnimatedNumber } from './primitives'
 import type { Recommendation, Scenario } from '@/data/types'
@@ -46,28 +45,25 @@ export function RecommendationCard({ recommendation: r, scenario }: { recommenda
         </div>
 
         <div className="flex-1">
-          <motion.div key={r.action + scenario} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}>
+          <div key={r.action + scenario}>
             <span className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 font-display text-xl font-bold" style={{ color, background: color + '1A' }}>
               {r.action}
               {shock && <ArrowUpRight size={18} />}
             </span>
             <p className="mt-2 font-display text-[16px] font-semibold leading-snug text-ink">{r.headline}</p>
-          </motion.div>
+          </div>
         </div>
       </div>
 
       <ul className="mt-4 space-y-2">
-        {r.rationale.map((x, i) => (
-          <motion.li
+        {r.rationale.map((x) => (
+          <li
             key={x}
-            initial={{ opacity: 0, x: -6 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.12 + i * 0.07 }}
             className="flex items-start gap-2 text-[13px] leading-snug text-ink/85"
           >
             <Check size={14} className="mt-0.5 shrink-0" style={{ color }} />
             {x}
-          </motion.li>
+          </li>
         ))}
       </ul>
 

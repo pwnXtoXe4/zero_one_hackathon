@@ -1,4 +1,3 @@
-import { motion } from 'motion/react'
 import { Card } from './primitives'
 import type { LadderStep, Recommendation } from '@/data/types'
 
@@ -8,12 +7,9 @@ export function TimingLadder({ ladder, recommendation }: { ladder: LadderStep[];
     <Card>
       <span className="label">Timing plan · when to execute</span>
       <div className="mt-4 space-y-3.5">
-        {ladder.map((s, i) => (
-          <motion.div
+        {ladder.map((s) => (
+          <div
             key={s.label + s.pct}
-            initial={{ opacity: 0, x: -8 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: i * 0.08, ease: [0.22, 1, 0.36, 1] }}
             className="flex items-center gap-3"
           >
             <div
@@ -28,17 +24,14 @@ export function TimingLadder({ ladder, recommendation }: { ladder: LadderStep[];
                 <span className="text-[11px] text-muted">{s.when}</span>
               </div>
               <div className="mt-1 h-1 overflow-hidden rounded-sm bg-surface2">
-                <motion.div
+                <div
                   className="h-full rounded-sm"
-                  style={{ background: color }}
-                  initial={{ width: 0 }}
-                  animate={{ width: `${s.pct}%` }}
-                  transition={{ duration: 0.7, delay: 0.1 + i * 0.08 }}
+                  style={{ width: `${s.pct}%`, background: color }}
                 />
               </div>
               <p className="mt-1 text-[11px] text-muted">{s.note}</p>
             </div>
-          </motion.div>
+          </div>
         ))}
       </div>
     </Card>

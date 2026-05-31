@@ -1,4 +1,3 @@
-import { motion } from 'motion/react'
 import { ArrowUpRight, Target } from 'lucide-react'
 import { Card, ConfidenceBadge, AnimatedNumber, Donut, CHANNEL_COLOR, CHANNEL_LABEL } from './primitives'
 import type { ExecutionPlan, Scenario } from '@/data/types'
@@ -15,16 +14,6 @@ function Stat({ label, value, color }: { label: string; value: number; color: st
       <div className="mt-0.5 font-display text-xl font-bold" style={{ color }}>
         <AnimatedNumber value={value} format={eurM} />
       </div>
-    </div>
-  )
-}
-
-function MarketEqualizer({ color }: { color: string }) {
-  return (
-    <div className="market-equalizer" style={{ '--eq-color': color } as React.CSSProperties}>
-      {Array.from({ length: 28 }, (_, i) => (
-        <span key={i} style={{ '--i': i } as React.CSSProperties} />
-      ))}
     </div>
   )
 }
@@ -50,24 +39,16 @@ export function ExecutionPlanCard({ plan, scenario }: { plan: ExecutionPlan; sce
         <ConfidenceBadge c={plan.confidence} />
       </div>
 
-      <div className="mt-2 flex items-center justify-between gap-4 border-y border-border/70 py-2">
-        <span className="font-mono text-[10px] uppercase text-muted">routing engine live</span>
-        <MarketEqualizer color={color} />
-      </div>
-
-      <motion.div
+      <div
         key={plan.action + scenario}
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
         className="mt-3 flex items-start gap-3"
       >
-        <span className="kinetic-badge inline-flex items-center gap-1 rounded-lg px-2.5 py-1 font-display text-xl font-bold" style={{ color, background: color + '1A' }}>
+        <span className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 font-display text-xl font-bold" style={{ color, background: color + '1A' }}>
           {plan.action}
           {shock && <ArrowUpRight size={18} />}
         </span>
         <p className="pt-0.5 font-display text-[16px] font-semibold leading-snug text-ink">{plan.headline}</p>
-      </motion.div>
+      </div>
 
       {/* channel mix donut + legend */}
       <div className="mt-4 flex items-center gap-5">
@@ -102,17 +83,14 @@ export function ExecutionPlanCard({ plan, scenario }: { plan: ExecutionPlan; sce
       <div className="mt-4">
         <span className="label flex items-center gap-1.5"><Target size={12} /> Monitoring triggers</span>
         <ul className="mt-2 space-y-1.5">
-          {plan.triggers.map((t, i) => (
-            <motion.li
+          {plan.triggers.map((t) => (
+            <li
               key={t}
-              initial={{ opacity: 0, x: -6 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.1 + i * 0.07 }}
               className="flex items-start gap-2 text-[12px] leading-snug text-ink/75"
             >
               <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full" style={{ background: color }} />
               {t}
-            </motion.li>
+            </li>
           ))}
         </ul>
       </div>

@@ -1,4 +1,3 @@
-import { motion } from 'motion/react'
 import { Card, CHANNEL_COLOR, CHANNEL_LABEL } from './primitives'
 import type { ExecutionPlan } from '@/data/types'
 import { tons } from '@/lib/utils'
@@ -34,13 +33,10 @@ export function ExecutionTimeline({ plan }: { plan: ExecutionPlan }) {
       {/* proportional channel ribbon */}
       <div className="mt-3 flex h-2.5 overflow-hidden rounded-sm bg-surface2">
         {plan.channelMix.map((m) => (
-          <motion.div
+          <div
             key={m.key}
-            initial={{ width: 0 }}
-            animate={{ width: `${(m.volume / total) * 100}%` }}
-            transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
             className="flow-bar"
-            style={{ background: CHANNEL_COLOR[m.key] }}
+            style={{ width: `${(m.volume / total) * 100}%`, background: CHANNEL_COLOR[m.key] }}
             title={`${CHANNEL_LABEL[m.key]} · ${tons(m.volume)}`}
           />
         ))}
@@ -51,11 +47,8 @@ export function ExecutionTimeline({ plan }: { plan: ExecutionPlan }) {
           const color = CHANNEL_COLOR[r.key]
           const pct = Math.round((r.volume / total) * 100)
           return (
-            <motion.div
+            <div
               key={r.id}
-              initial={{ opacity: 0, x: -8 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.07, ease: [0.22, 1, 0.36, 1] }}
               className="flex items-start gap-3"
             >
               <div className="flex flex-col items-center pt-1">
@@ -79,7 +72,7 @@ export function ExecutionTimeline({ plan }: { plan: ExecutionPlan }) {
                 </div>
                 <p className="mt-1 text-[11px] leading-snug text-muted">{r.reason}</p>
               </div>
-            </motion.div>
+            </div>
           )
         })}
       </div>

@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { motion, AnimatePresence } from 'motion/react'
 import { ChevronDown, Zap, RotateCcw, Activity } from 'lucide-react'
 import { FIRMS, positionOf, CURRENT_PRICE } from '@/data/mock'
 import { useScenario } from '@/state/scenario'
@@ -38,44 +37,36 @@ function FirmSelector() {
         </div>
         <ChevronDown size={16} className={cn('text-muted transition-transform', open && 'rotate-180')} />
       </button>
-      <AnimatePresence>
-        {open && (
-          <>
-            <div className="fixed inset-0 z-20" onClick={() => setOpen(false)} />
-            <motion.div
-              initial={{ opacity: 0, y: -8, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -8, scale: 0.98 }}
-              transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-              className="absolute right-0 z-30 mt-2 max-h-[420px] w-[320px] overflow-auto rounded-lg border border-border bg-surface p-1.5 shadow-raised"
-            >
-              {FIRMS.map((f) => {
-                const p = positionOf(f)
-                return (
-                  <button
-                    key={f.id}
-                    onClick={() => {
-                      setFirmId(f.id)
-                      setOpen(false)
-                    }}
-                    className={cn(
-                      'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-surface2',
-                      f.id === firmId && 'bg-surface2',
-                    )}
-                  >
-                    <SectorDot sector={f.sector} />
-                    <span className="flex-1 text-sm text-ink">{f.name}</span>
-                    <span className={cn('text-[11px] font-medium', p.side === 'SHORT' ? 'text-amber' : 'text-signal')}>
-                      {p.side === 'SHORT' ? '−' : '+'}
-                      {tons(Math.abs(p.deficit))}
-                    </span>
-                  </button>
-                )
-              })}
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-20" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 z-30 mt-2 max-h-[420px] w-[320px] overflow-auto rounded-lg border border-border bg-surface p-1.5 shadow-raised">
+            {FIRMS.map((f) => {
+              const p = positionOf(f)
+              return (
+                <button
+                  key={f.id}
+                  onClick={() => {
+                    setFirmId(f.id)
+                    setOpen(false)
+                  }}
+                  className={cn(
+                    'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-surface2',
+                    f.id === firmId && 'bg-surface2',
+                  )}
+                >
+                  <SectorDot sector={f.sector} />
+                  <span className="flex-1 text-sm text-ink">{f.name}</span>
+                  <span className={cn('text-[11px] font-medium', p.side === 'SHORT' ? 'text-amber' : 'text-signal')}>
+                    {p.side === 'SHORT' ? '−' : '+'}
+                    {tons(Math.abs(p.deficit))}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </>
+      )}
     </div>
   )
 }
@@ -132,7 +123,7 @@ export function TopBar() {
         </div>
 
         <div className="hidden items-center gap-2 rounded-md border border-border bg-surface px-3 py-1.5 md:flex">
-          <Activity size={14} className="live-dot text-signal" />
+          <Activity size={14} className="text-signal" />
           <span className="text-xs text-muted">EU ETS · EUA Dec-26</span>
           <span className="font-mono text-sm font-semibold text-ink">€{CURRENT_PRICE.toFixed(2)}</span>
           <span className="text-xs font-medium text-signal">▲ 1.4%</span>

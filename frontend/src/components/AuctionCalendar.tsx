@@ -1,4 +1,3 @@
-import { motion } from 'motion/react'
 import { Gavel } from 'lucide-react'
 import { Card } from './primitives'
 import type { AuctionDay, Scenario } from '@/data/types'
@@ -27,17 +26,14 @@ export function AuctionCalendar({ auctions, scenario }: { auctions: AuctionDay[]
       </p>
 
       <div className="mt-3.5 flex gap-3 overflow-x-auto pb-1">
-        {auctions.map((a, i) => {
+        {auctions.map((a) => {
           const [tag, tc] = TYPE[a.type] ?? [a.type, '#69756F']
           const targeted = a.targetVolume > 0
           const accent = a.msrAffected ? '#D18500' : targeted ? '#009B72' : null
           return (
-            <motion.div
+            <div
               key={a.id + scenario}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.06, ease: [0.22, 1, 0.36, 1] }}
-              className={targeted ? 'auction-target relative min-w-[162px] flex-1 rounded-lg border bg-surface2/55 p-3' : 'relative min-w-[162px] flex-1 rounded-lg border bg-surface2/55 p-3'}
+              className="relative min-w-[162px] flex-1 rounded-lg border bg-surface2/55 p-3"
               style={{ borderColor: accent ? accent + '66' : undefined }}
             >
               <div className="flex items-center justify-between">
@@ -57,12 +53,9 @@ export function AuctionCalendar({ auctions, scenario }: { auctions: AuctionDay[]
                   <span className="font-mono text-ink">{tons(a.volume)}</span>
                 </div>
                 <div className="h-1.5 overflow-hidden rounded-sm bg-surface2">
-                  <motion.div
+                  <div
                     className="flow-bar h-full rounded-sm"
-                    style={{ background: tc }}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${(a.volume / maxVol) * 100}%` }}
-                    transition={{ duration: 0.6, delay: 0.1 + i * 0.05 }}
+                    style={{ width: `${(a.volume / maxVol) * 100}%`, background: tc }}
                   />
                 </div>
                 <div className="flex items-center justify-between text-[11px]">
@@ -83,7 +76,7 @@ export function AuctionCalendar({ auctions, scenario }: { auctions: AuctionDay[]
                   {a.recommendedBid != null ? `Watch · max €${a.recommendedBid.toFixed(1)}` : 'Monitor only'}
                 </div>
               )}
-            </motion.div>
+            </div>
           )
         })}
       </div>

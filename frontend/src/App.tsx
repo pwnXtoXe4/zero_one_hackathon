@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { motion } from 'motion/react'
 import { ScenarioProvider, useScenario } from '@/state/scenario'
 import { api, type View } from '@/data/api'
 import type { HistoryPoint } from '@/data/types'
@@ -15,15 +14,6 @@ import { ChannelRouter } from '@/components/ChannelRouter'
 import { AuctionCalendar } from '@/components/AuctionCalendar'
 import { ExecutionTimeline } from '@/components/ExecutionTimeline'
 import { SmartMatchFeed } from '@/components/SmartMatchFeed'
-
-const container = {
-  hidden: {},
-  show: { transition: { staggerChildren: 0.025, delayChildren: 0.02 } },
-}
-const item = {
-  hidden: { opacity: 0, y: 6 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.22, ease: [0.2, 0, 0.2, 1] } },
-}
 
 function Splash() {
   return (
@@ -64,42 +54,42 @@ function Dashboard() {
           {!view || !history.length ? (
             <Splash />
           ) : (
-            <motion.div variants={container} initial="hidden" animate="show" className="grid grid-cols-12 gap-3 [&_.card]:h-full">
+            <div className="grid grid-cols-12 gap-3 [&_.card]:h-full">
               {/* Row A — position · plan · market */}
-              <motion.div variants={item} className="col-span-12 lg:col-span-3">
+              <div className="col-span-12 lg:col-span-3">
                 <PositionCard firm={view.firm} position={view.position} />
-              </motion.div>
-              <motion.div variants={item} className="col-span-12 lg:col-span-6">
+              </div>
+              <div className="col-span-12 lg:col-span-6">
                 <ExecutionPlanCard plan={view.plan} scenario={scenario} />
-              </motion.div>
-              <motion.div variants={item} className="col-span-12 lg:col-span-3">
+              </div>
+              <div className="col-span-12 lg:col-span-3">
                 <MarketSnapshot history={history} forecast={view.forecast} scenario={scenario} />
-              </motion.div>
+              </div>
 
               {/* Row B — forecast · drivers */}
-              <motion.div variants={item} className="col-span-12 lg:col-span-8">
+              <div className="col-span-12 lg:col-span-8">
                 <PriceForecastChart history={history} forecast={view.forecast} scenario={scenario} />
-              </motion.div>
-              <motion.div variants={item} className="col-span-12 lg:col-span-4">
+              </div>
+              <div className="col-span-12 lg:col-span-4">
                 <DriverImportance drivers={view.drivers} />
-              </motion.div>
+              </div>
 
               {/* Row C — channel router · auction calendar */}
-              <motion.div variants={item} className="col-span-12 lg:col-span-5">
+              <div className="col-span-12 lg:col-span-5">
                 <ChannelRouter channels={view.channels} scenario={scenario} />
-              </motion.div>
-              <motion.div variants={item} className="col-span-12 lg:col-span-7">
+              </div>
+              <div className="col-span-12 lg:col-span-7">
                 <AuctionCalendar auctions={view.auctions} scenario={scenario} />
-              </motion.div>
+              </div>
 
               {/* Row D — execution timeline · OTC desk */}
-              <motion.div variants={item} className="col-span-12 lg:col-span-7">
+              <div className="col-span-12 lg:col-span-7">
                 <ExecutionTimeline plan={view.plan} />
-              </motion.div>
-              <motion.div variants={item} className="col-span-12 lg:col-span-5">
+              </div>
+              <div className="col-span-12 lg:col-span-5">
                 <SmartMatchFeed matches={view.matches} scenario={scenario} />
-              </motion.div>
-            </motion.div>
+              </div>
+            </div>
           )}
 
           <footer className="mt-8 flex items-center justify-between border-t border-border/60 pt-4 text-[11px] text-muted">
