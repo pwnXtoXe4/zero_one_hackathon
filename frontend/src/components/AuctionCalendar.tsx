@@ -37,7 +37,7 @@ export function AuctionCalendar({ auctions, scenario }: { auctions: AuctionDay[]
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.06, ease: [0.22, 1, 0.36, 1] }}
-              className="relative min-w-[162px] flex-1 rounded-lg border bg-surface2/55 p-3"
+              className={targeted ? 'auction-target relative min-w-[162px] flex-1 rounded-lg border bg-surface2/55 p-3' : 'relative min-w-[162px] flex-1 rounded-lg border bg-surface2/55 p-3'}
               style={{ borderColor: accent ? accent + '66' : undefined }}
             >
               <div className="flex items-center justify-between">
@@ -58,7 +58,7 @@ export function AuctionCalendar({ auctions, scenario }: { auctions: AuctionDay[]
                 </div>
                 <div className="h-1.5 overflow-hidden rounded-sm bg-surface2">
                   <motion.div
-                    className="h-full rounded-sm"
+                    className="flow-bar h-full rounded-sm"
                     style={{ background: tc }}
                     initial={{ width: 0 }}
                     animate={{ width: `${(a.volume / maxVol) * 100}%` }}

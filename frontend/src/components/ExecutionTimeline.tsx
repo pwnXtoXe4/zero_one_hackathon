@@ -39,6 +39,7 @@ export function ExecutionTimeline({ plan }: { plan: ExecutionPlan }) {
             initial={{ width: 0 }}
             animate={{ width: `${(m.volume / total) * 100}%` }}
             transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+            className="flow-bar"
             style={{ background: CHANNEL_COLOR[m.key] }}
             title={`${CHANNEL_LABEL[m.key]} · ${tons(m.volume)}`}
           />

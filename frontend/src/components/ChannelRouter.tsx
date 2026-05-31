@@ -53,7 +53,7 @@ export function ChannelRouter({ channels, scenario }: { channels: ChannelOption[
               <div className="mt-2 flex items-center gap-3">
                 <div className="h-1.5 flex-1 overflow-hidden rounded-sm bg-surface2">
                   <motion.div
-                    className="h-full rounded-sm"
+                    className="flow-bar h-full rounded-sm"
                     style={{ background: color }}
                     initial={{ width: 0 }}
                     animate={{ width: `${(c.recommendedVolume / maxRec) * 100}%` }}

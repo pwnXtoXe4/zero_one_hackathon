@@ -6,6 +6,15 @@ import { useScenario } from '@/state/scenario'
 import { SectorDot } from './primitives'
 import { cn, tons } from '@/lib/utils'
 
+const TAPE = [
+  ['EUA Dec-26', '€80.10', '+1.4%', 'ticker-up'],
+  ['CAP3 Jun02', '29.0k t', 'bid ≤ €80.3', 'ticker-up'],
+  ['MSR risk', 'watch', '+20bp', 'ticker-warn'],
+  ['OTC flow', '36.5k t', 'live', 'ticker-hot'],
+  ['Gas signal', '30', '↑', 'ticker-up'],
+  ['CBAM', '25', '↑', 'ticker-up'],
+]
+
 function FirmSelector() {
   const { firmId, setFirmId } = useScenario()
   const [open, setOpen] = useState(false)
@@ -89,6 +98,23 @@ function ShockButton() {
   )
 }
 
+function MarketTape() {
+  const items = [...TAPE, ...TAPE, ...TAPE]
+  return (
+    <div className="market-tape">
+      <div className="market-tape-track">
+        {items.map(([name, value, change, tone], i) => (
+          <span key={`${name}-${i}`} className="inline-flex items-center gap-2">
+            <span className="text-white/70">{name}</span>
+            <span className="font-semibold text-white">{value}</span>
+            <span className={tone}>{change}</span>
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export function TopBar() {
   return (
     <header className="sticky top-0 z-10 border-b border-border bg-bg/95">
@@ -106,7 +132,7 @@ export function TopBar() {
         </div>
 
         <div className="hidden items-center gap-2 rounded-md border border-border bg-surface px-3 py-1.5 md:flex">
-          <Activity size={14} className="text-signal" />
+          <Activity size={14} className="live-dot text-signal" />
           <span className="text-xs text-muted">EU ETS · EUA Dec-26</span>
           <span className="font-mono text-sm font-semibold text-ink">€{CURRENT_PRICE.toFixed(2)}</span>
           <span className="text-xs font-medium text-signal">▲ 1.4%</span>
@@ -117,6 +143,7 @@ export function TopBar() {
           <ShockButton />
         </div>
       </div>
+      <MarketTape />
     </header>
   )
 }

@@ -19,6 +19,16 @@ function Stat({ label, value, color }: { label: string; value: number; color: st
   )
 }
 
+function MarketEqualizer({ color }: { color: string }) {
+  return (
+    <div className="market-equalizer" style={{ '--eq-color': color } as React.CSSProperties}>
+      {Array.from({ length: 28 }, (_, i) => (
+        <span key={i} style={{ '--i': i } as React.CSSProperties} />
+      ))}
+    </div>
+  )
+}
+
 export function ExecutionPlanCard({ plan, scenario }: { plan: ExecutionPlan; scenario: Scenario }) {
   const shock = scenario === 'shock'
   const color = shock ? '#D18500' : ACTION_COLOR[plan.action] ?? '#1E70B8'
@@ -40,6 +50,11 @@ export function ExecutionPlanCard({ plan, scenario }: { plan: ExecutionPlan; sce
         <ConfidenceBadge c={plan.confidence} />
       </div>
 
+      <div className="mt-2 flex items-center justify-between gap-4 border-y border-border/70 py-2">
+        <span className="font-mono text-[10px] uppercase text-muted">routing engine live</span>
+        <MarketEqualizer color={color} />
+      </div>
+
       <motion.div
         key={plan.action + scenario}
         initial={{ opacity: 0, y: 8 }}
@@ -47,7 +62,7 @@ export function ExecutionPlanCard({ plan, scenario }: { plan: ExecutionPlan; sce
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
         className="mt-3 flex items-start gap-3"
       >
-        <span className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 font-display text-xl font-bold" style={{ color, background: color + '1A' }}>
+        <span className="kinetic-badge inline-flex items-center gap-1 rounded-lg px-2.5 py-1 font-display text-xl font-bold" style={{ color, background: color + '1A' }}>
           {plan.action}
           {shock && <ArrowUpRight size={18} />}
         </span>

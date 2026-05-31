@@ -83,6 +83,7 @@ export function Sparkline({
     const y = height - ((v - min) / rng) * (height - 4) - 2
     return `${x.toFixed(1)},${y.toFixed(1)}`
   })
+  const [lastX, lastY] = pts[pts.length - 1].split(',').map(Number)
   const id = `spark-${color.replace('#', '')}`
   return (
     <svg width={width} height={height} className="overflow-visible">
@@ -93,7 +94,8 @@ export function Sparkline({
         </linearGradient>
       </defs>
       <polyline points={`0,${height} ${pts.join(' ')} ${width},${height}`} fill={`url(#${id})`} stroke="none" />
-      <polyline points={pts.join(' ')} fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <polyline className="sparkline-path" points={pts.join(' ')} fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <circle className="spark-dot" cx={lastX} cy={lastY} r="2.7" fill={color} />
     </svg>
   )
 }

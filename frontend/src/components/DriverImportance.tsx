@@ -21,7 +21,7 @@ export function DriverImportance({ drivers }: { drivers: Driver[] }) {
               </div>
               <div className="h-1.5 overflow-hidden rounded-sm bg-surface2">
                 <motion.div
-                  className="h-full rounded-sm"
+                  className="flow-bar h-full rounded-sm"
                   style={{ background: color }}
                   initial={{ width: 0 }}
                   animate={{ width: `${(d.importance / max) * 100}%` }}
