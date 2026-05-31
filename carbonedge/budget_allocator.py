@@ -68,6 +68,7 @@ class AllocationPlan:
 def allocate_budget(
     mac_curve: MACCurve,
     budget: float,
+    ets_price: float = 80.0,
 ) -> AllocationPlan:
     """
     Allocate budget across reduction options and time horizons.
@@ -81,6 +82,7 @@ def allocate_budget(
     ----------
     mac_curve : ranked reduction options
     budget : total annual reduction budget in EUR
+    ets_price : current carbon price for ROI calculation
     """
     reserve_pct = ALLOCATOR_CONFIG["reserve_pct"]
     max_upfront_pct = ALLOCATOR_CONFIG["max_upfront_pct"]
