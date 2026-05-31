@@ -8,7 +8,7 @@ export function ChannelRouter({ channels, scenario }: { channels: ChannelOption[
   const routed = channels.filter((c) => c.recommendedVolume > 0).length
 
   return (
-    <Card>
+    <Card className="bg-[#F6FCF9]" style={{ '--card-accent': '#009B72' } as React.CSSProperties}>
       <div className="mb-1 flex items-center justify-between">
         <span className="label">Channel router · where to buy</span>
         <span className="chip">{routed} routed</span>
@@ -60,7 +60,7 @@ export function ChannelRouter({ channels, scenario }: { channels: ChannelOption[
                     transition={{ duration: 0.7, delay: 0.1 + i * 0.06 }}
                   />
                 </div>
-                <span className="w-16 shrink-0 text-right font-mono text-[12px]" style={{ color: isRouted ? color : '#8C948F' }}>
+                <span className="w-16 shrink-0 text-right font-mono text-[12px]" style={{ color: isRouted ? color : '#7D8983' }}>
                   {isRouted ? tons(c.recommendedVolume) : '—'}
                 </span>
               </div>

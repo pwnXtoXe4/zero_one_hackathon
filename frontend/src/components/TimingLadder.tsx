@@ -3,7 +3,7 @@ import { Card } from './primitives'
 import type { LadderStep, Recommendation } from '@/data/types'
 
 export function TimingLadder({ ladder, recommendation }: { ladder: LadderStep[]; recommendation: Recommendation }) {
-  const color = recommendation.action === 'BUY' ? '#B7791F' : '#2F5E8F'
+  const color = recommendation.action === 'BUY' ? '#D18500' : '#1E70B8'
   return (
     <Card>
       <span className="label">Timing plan · when to execute</span>

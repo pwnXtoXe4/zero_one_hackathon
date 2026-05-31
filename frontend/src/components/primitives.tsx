@@ -3,8 +3,8 @@ import { cn } from '@/lib/utils'
 import type { Confidence, Sector } from '@/data/types'
 
 export const SECTOR_COLOR: Record<Sector, string> = {
-  Steel: '#5B6260', Cement: '#A7832D', Chemicals: '#158765', Power: '#2F5E8F',
-  Aviation: '#6E6A3A', Refining: '#B45D32', Paper: '#4D8A46', Glass: '#327D78',
+  Steel: '#596B75', Cement: '#C19A16', Chemicals: '#009B72', Power: '#1E70B8',
+  Aviation: '#6F5CB8', Refining: '#D66A2E', Paper: '#3F9B4F', Glass: '#00A1A7',
 }
 
 export function Card({ className, children, ...rest }: React.HTMLAttributes<HTMLDivElement>) {
@@ -67,7 +67,7 @@ export function AnimatedNumber({
 }
 
 export function Sparkline({
-  data, width = 120, height = 34, color = '#158765',
+  data, width = 120, height = 34, color = '#009B72',
 }: {
   data: number[]
   width?: number
@@ -99,11 +99,11 @@ export function Sparkline({
 }
 
 export const CHANNEL_COLOR: Record<string, string> = {
-  AUCTION: '#158765', // primary market
-  SPOT: '#2F5E8F', // secondary continuous
-  RFQ: '#7B6F42', // broker request-for-quote
-  OTC: '#B45D32', // bilateral
-  WAIT: '#626B66', // held open
+  AUCTION: '#009B72', // primary market
+  SPOT: '#1E70B8', // secondary continuous
+  RFQ: '#C19A16', // broker request-for-quote
+  OTC: '#D66A2E', // bilateral
+  WAIT: '#69756F', // held open
 }
 
 export const CHANNEL_LABEL: Record<string, string> = {
@@ -124,7 +124,7 @@ export function Donut({
   let acc = 0
   return (
     <svg width={size} height={size} className="-rotate-90">
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#E6E8E3" strokeWidth={stroke} />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#E4ECE8" strokeWidth={stroke} />
       {segments.map((seg, i) => {
         const len = (seg.value / total) * circ
         const node = (
@@ -146,13 +146,13 @@ export function Donut({
   )
 }
 
-export function RingGauge({ pct, color = '#158765', size = 76 }: { pct: number; color?: string; size?: number }) {
+export function RingGauge({ pct, color = '#009B72', size = 76 }: { pct: number; color?: string; size?: number }) {
   const r = (size - 10) / 2
   const c = 2 * Math.PI * r
   const off = c - (pct / 100) * c
   return (
     <svg width={size} height={size} className="-rotate-90">
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#E1E4DF" strokeWidth="6" />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#E4ECE8" strokeWidth="6" />
       <circle
         cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth="6" strokeLinecap="round"
         strokeDasharray={c} strokeDashoffset={off}

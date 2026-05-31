@@ -4,16 +4,16 @@ export default {
   theme: {
     extend: {
       colors: {
-        bg: '#F3F4F2', // app background (quiet warm grey)
+        bg: '#F4F7F5', // app background (quiet market terminal)
         surface: '#FFFFFF', // cards
-        surface2: '#ECEEEB', // insets / wells
-        border: '#D7DAD5', // hairlines
+        surface2: '#EEF4F1', // insets / wells
+        border: '#D3DDD8', // hairlines
         ink: '#171C19', // primary text
-        muted: '#626B66', // secondary text
-        signal: '#158765', // long / positive
-        amber: '#B7791F', // short / shock / warning
-        danger: '#B91C1C', // down
-        cool: '#2F5E8F', // forecast / spot
+        muted: '#5D6A64', // secondary text
+        signal: '#009B72', // long / positive
+        amber: '#D18500', // short / shock / warning
+        danger: '#D6452E', // down
+        cool: '#1E70B8', // forecast / spot
       },
       fontFamily: {
         display: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],

@@ -9,7 +9,7 @@ function TimingPill({ timing }: { timing: 'NOW' | 'WAIT' }) {
   return (
     <span
       className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-bold"
-      style={now ? { color: '#B7791F', background: '#B7791F1A' } : { color: '#2F5E8F', background: '#2F5E8F1A' }}
+      style={now ? { color: '#D18500', background: '#D185001F' } : { color: '#1E70B8', background: '#1E70B81F' }}
     >
       {now ? <Zap size={11} className="fill-current" /> : <Clock size={11} />}
       {timing}
@@ -19,10 +19,10 @@ function TimingPill({ timing }: { timing: 'NOW' | 'WAIT' }) {
 
 export function SmartMatchFeed({ matches, scenario }: { matches: Match[]; scenario: Scenario }) {
   return (
-    <Card className="flex flex-col">
+    <Card className="flex flex-col bg-[#FFF9F4]" style={{ '--card-accent': '#D66A2E' } as React.CSSProperties}>
       <div className="mb-3 flex items-center justify-between">
         <span className="label flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-sm" style={{ background: '#B45D32' }} />
+          <span className="h-2 w-2 rounded-sm" style={{ background: '#D66A2E' }} />
           OTC desk · bilateral offers
         </span>
         <span className="chip">{matches.length} live</span>

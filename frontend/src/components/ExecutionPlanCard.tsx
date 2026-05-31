@@ -5,7 +5,7 @@ import type { ExecutionPlan, Scenario } from '@/data/types'
 import { eurM, tons } from '@/lib/utils'
 
 const ACTION_COLOR: Record<string, string> = {
-  BUY: '#B7791F', LADDER: '#2F5E8F', SELL: '#158765', WAIT: '#158765',
+  BUY: '#D18500', LADDER: '#1E70B8', SELL: '#009B72', WAIT: '#009B72',
 }
 
 function Stat({ label, value, color }: { label: string; value: number; color: string }) {
@@ -21,14 +21,19 @@ function Stat({ label, value, color }: { label: string; value: number; color: st
 
 export function ExecutionPlanCard({ plan, scenario }: { plan: ExecutionPlan; scenario: Scenario }) {
   const shock = scenario === 'shock'
-  const color = shock ? '#B7791F' : ACTION_COLOR[plan.action] ?? '#2F5E8F'
+  const color = shock ? '#D18500' : ACTION_COLOR[plan.action] ?? '#1E70B8'
   const total = plan.channelMix.reduce((s, m) => s + m.volume, 0) || 1
   const segs = plan.channelMix.map((m) => ({ value: m.volume, color: CHANNEL_COLOR[m.key] }))
 
   return (
     <Card
-      className="relative overflow-hidden"
-      style={shock ? { borderColor: 'rgba(255,178,62,0.45)', boxShadow: '0 0 70px -18px rgba(255,178,62,0.5)' } : undefined}
+      className="relative overflow-hidden bg-[#F8FBFF]"
+      style={
+        {
+          '--card-accent': color,
+          ...(shock ? { borderColor: 'rgba(209,133,0,0.45)' } : {}),
+        } as React.CSSProperties
+      }
     >
       <div className="flex items-center justify-between">
         <span className="label">Execution plan · how to procure</span>
@@ -74,7 +79,7 @@ export function ExecutionPlanCard({ plan, scenario }: { plan: ExecutionPlan; sce
       {/* cost summary */}
       <div className="mt-4 grid grid-cols-3 gap-3 border-t border-border pt-4">
         <Stat label="Expected spend" value={plan.expectedTotal} color="#0F172A" />
-        <Stat label="Worst case" value={plan.worstCase} color="#B45D32" />
+        <Stat label="Worst case" value={plan.worstCase} color="#D66A2E" />
         <Stat label="Saved vs year-end" value={plan.savingsVsYearEnd} color={color} />
       </div>
 

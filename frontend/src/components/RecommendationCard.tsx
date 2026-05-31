@@ -5,10 +5,10 @@ import type { Recommendation, Scenario } from '@/data/types'
 import { eurM } from '@/lib/utils'
 
 function actionColor(a: string, shock: boolean) {
-  if (a === 'BUY') return shock ? '#B7791F' : '#158765'
-  if (a === 'LADDER') return '#2F5E8F'
-  if (a === 'WAIT') return '#158765'
-  return '#2F5E8F'
+  if (a === 'BUY') return shock ? '#D18500' : '#009B72'
+  if (a === 'LADDER') return '#1E70B8'
+  if (a === 'WAIT') return '#009B72'
+  return '#1E70B8'
 }
 
 function Stat({ label, value, color }: { label: string; value: number; color: string }) {
@@ -27,8 +27,13 @@ export function RecommendationCard({ recommendation: r, scenario }: { recommenda
   const color = actionColor(r.action, shock)
   return (
     <Card
-      className="relative overflow-hidden"
-      style={shock ? { borderColor: 'rgba(255,178,62,0.45)', boxShadow: '0 0 70px -18px rgba(255,178,62,0.5)' } : undefined}
+      className="relative overflow-hidden bg-[#F8FBFF]"
+      style={
+        {
+          '--card-accent': color,
+          ...(shock ? { borderColor: 'rgba(209,133,0,0.45)' } : {}),
+        } as React.CSSProperties
+      }
     >
       <span className="label">Agent recommendation</span>
 
@@ -67,7 +72,7 @@ export function RecommendationCard({ recommendation: r, scenario }: { recommenda
       </ul>
 
       <div className="mt-5 grid grid-cols-2 gap-3 border-t border-border pt-4">
-        <Stat label="Exposure at risk" value={r.costAtRisk} color="#0F172A" />
+        <Stat label="Exposure at risk" value={r.costAtRisk} color="#171C19" />
         <Stat label="Saved vs naive" value={r.savingsVsNaive} color={color} />
       </div>
     </Card>

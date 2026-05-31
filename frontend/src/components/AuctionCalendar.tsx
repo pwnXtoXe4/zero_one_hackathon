@@ -5,7 +5,7 @@ import type { AuctionDay, Scenario } from '@/data/types'
 import { tons } from '@/lib/utils'
 
 const TYPE: Record<string, [string, string]> = {
-  CAP3: ['CAP3 · EU', '#158765'], GERMANY: ['Germany', '#2F5E8F'], POLAND: ['Poland', '#7B6F42'],
+  CAP3: ['CAP3 · EU', '#009B72'], GERMANY: ['Germany', '#1E70B8'], POLAND: ['Poland', '#C19A16'],
 }
 
 export function AuctionCalendar({ auctions, scenario }: { auctions: AuctionDay[]; scenario: Scenario }) {
@@ -13,7 +13,7 @@ export function AuctionCalendar({ auctions, scenario }: { auctions: AuctionDay[]
   const maxVol = Math.max(...auctions.map((a) => a.volume), 1)
 
   return (
-    <Card>
+    <Card className="bg-[#F8FBFF]" style={{ '--card-accent': '#1E70B8' } as React.CSSProperties}>
       <div className="flex items-center justify-between">
         <span className="label flex items-center gap-1.5">
           <Gavel size={13} /> Primary market · EU ETS auctions
@@ -28,9 +28,9 @@ export function AuctionCalendar({ auctions, scenario }: { auctions: AuctionDay[]
 
       <div className="mt-3.5 flex gap-3 overflow-x-auto pb-1">
         {auctions.map((a, i) => {
-          const [tag, tc] = TYPE[a.type] ?? [a.type, '#626B66']
+          const [tag, tc] = TYPE[a.type] ?? [a.type, '#69756F']
           const targeted = a.targetVolume > 0
-          const accent = a.msrAffected ? '#B7791F' : targeted ? '#158765' : null
+          const accent = a.msrAffected ? '#D18500' : targeted ? '#009B72' : null
           return (
             <motion.div
               key={a.id + scenario}

@@ -28,7 +28,7 @@ export function ExecutionTimeline({ plan }: { plan: ExecutionPlan }) {
   }
 
   return (
-    <Card>
+    <Card className="bg-[#FFFDF7]" style={{ '--card-accent': '#D18500' } as React.CSSProperties}>
       <span className="label">Execution timeline · when &amp; through which channel</span>
 
       {/* proportional channel ribbon */}
