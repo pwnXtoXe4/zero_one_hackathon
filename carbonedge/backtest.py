@@ -22,6 +22,12 @@ import numpy as np
 
 from .config import CARBON_EXPOSURE, COMPANY_PROFILE
 
+try:
+    from scipy.stats import norm as _norm
+    _HAS_SCIPY = True
+except ImportError:
+    _HAS_SCIPY = False
+
 logger = logging.getLogger(__name__)
 from .decision_agent import run_decision_agent
 from .enhancement.driver_filter import DriverBias
@@ -170,10 +176,16 @@ class BacktestWindow:
     realized_cost_agent: float
     realized_cost_spot: float
     realized_cost_equal_thirds: Optional[float]
+    realized_cost_random_walk: Optional[float]
+    realized_cost_moving_average: Optional[float]
+    realized_cost_always_6: Optional[float]
 
     # Convenience savings vs each baseline (positive = agent paid less)
     savings_vs_spot: float
     savings_vs_equal_thirds: Optional[float]
+    savings_vs_random_walk: Optional[float]
+    savings_vs_moving_average: Optional[float]
+    savings_vs_always_6: Optional[float]
 
     regime_level: str
     epu_level: str
@@ -185,16 +197,28 @@ class BacktestWindow:
 
 @dataclass
 class StatisticalSummary:
-    """Paired t-test + 95% CI on per-window savings against one baseline."""
+    """Paired t-test + DM test + 95% CI on per-window savings against one baseline.
+
+    The Diebold-Mariano (DM) test replaces the naive paired t-test by using
+    Newey-West HAC standard errors that are robust to autocorrelation in the
+    loss-differential series — the standard in forecast evaluation literature.
+    Under H₀ the DM statistic is asymptotically N(0,1).
+    """
     baseline_name: str
     n: int
     mean_savings: float
     std_savings: float
-    se_savings: float
-    t_statistic: float
-    p_value: float
-    ci95_low: float
+    se_savings: float              # naive SE = std / sqrt(n)
+    t_statistic: float              # naive paired-t (SciPy ttest_rel)
+    p_value: float                  # naive p-value (SciPy or NaN)
+    ci95_low: float                 # 95% CI using naive SE
     ci95_high: float
+    # --- Diebold-Mariano extensions ---
+    dm_se_hac: float = float("nan")       # Newey-West HAC standard error
+    dm_statistic: float = float("nan")    # DM = mean / SE_HAC ~ N(0,1)
+    dm_p_value: float = float("nan")      # two-sided p from N(0,1)
+    dm_bandwidth: int = 0                 # Newey-West automatic bandwidth
+    dm_significant: bool = False          # True if dm_p_value < 0.05
 
 
 @dataclass
@@ -214,9 +238,12 @@ class BacktestResult:
     strategy_counts: Dict[str, int] = field(default_factory=dict)
     regime_breakdown: Dict[str, int] = field(default_factory=dict)
 
-    # Statistical comparison vs each baseline
+    # Statistical comparison vs each baseline (paired t + Diebold-Mariano)
     stats_vs_spot: Optional[StatisticalSummary] = None
     stats_vs_equal_thirds: Optional[StatisticalSummary] = None
+    stats_vs_random_walk: Optional[StatisticalSummary] = None
+    stats_vs_moving_average: Optional[StatisticalSummary] = None
+    stats_vs_always_6: Optional[StatisticalSummary] = None
     forecast_mode: str = "naive"    # 'naive' (out-of-sample) or 'oracle'
 
 
@@ -293,12 +320,91 @@ def _realized_cost_for_plan(
     return total
 
 
+def _newey_west_hac(d: np.ndarray, max_lag: Optional[int] = None) -> float:
+    """Newey-West (1987, 1994) HAC long-run variance estimator for mean(d).
+
+    Uses Bartlett kernel w(j) = 1 - j/(h+1) with automatic bandwidth
+    h = floor(4 * (T/100)^{2/9}) per Newey-West (1994).
+
+    Returns
+    -------
+    float : long-run variance estimate (scalar, not scaled by T).
+    """
+    T = len(d)
+    if T < 2:
+        return float(np.var(d, ddof=0)) if T > 0 else 0.0
+
+    if max_lag is None:
+        max_lag = max(1, int(np.floor(4.0 * (T / 100.0) ** (2.0 / 9.0))))
+    max_lag = min(max_lag, T - 1)
+
+    d_demean = d - np.mean(d)
+    gamma0 = np.mean(d_demean * d_demean)
+    hac_var = gamma0
+    for j in range(1, max_lag + 1):
+        gamma_j = np.mean(d_demean[j:] * d_demean[:-j])
+        weight = 1.0 - float(j) / float(max_lag + 1)
+        hac_var += 2.0 * weight * float(gamma_j)
+
+    return max(hac_var, 1e-12)
+
+
+def _diebold_mariano(agent_costs: List[float], baseline_costs: List[float]) -> Dict:
+    """Diebold-Mariano test with Newey-West HAC standard errors.
+
+    d_t = cost(agent, t) - cost(baseline, t).
+    H₀: E[d_t] = 0  (agent and baseline have equal expected cost).
+    DM = sqrt(T) * mean(d) / sqrt(HAC_var) ~ N(0,1) asymptotically.
+
+    References
+    ----------
+    Diebold & Mariano (1995) "Comparing Predictive Accuracy," JBES 13:253-263.
+    Newey & West (1994) "Automatic Lag Selection in Covariance Matrix Estimation."
+
+    Returns
+    -------
+    dict with keys: n, mean, se_hac, dm_statistic, dm_p_value, bandwidth.
+    """
+    a = np.asarray(agent_costs, dtype=float)
+    b = np.asarray(baseline_costs, dtype=float)
+    d = a - b  # positive = agent was MORE expensive (worse)
+    n = len(d)
+    mean_d = float(np.mean(d))
+    hac_var = _newey_west_hac(d)
+    bandwidth = max(1, int(np.floor(4.0 * (n / 100.0) ** (2.0 / 9.0))))
+    se_hac = float(np.sqrt(hac_var / float(n)))
+
+    if se_hac > 0:
+        dm_stat = mean_d / se_hac
+        if _HAS_SCIPY:
+            dm_p = 2.0 * float(_norm.cdf(-abs(dm_stat)))
+        else:
+            dm_p = float("nan")
+    else:
+        dm_stat = 0.0
+        dm_p = 1.0
+
+    return {
+        "n": n,
+        "mean": mean_d,
+        "se_hac": se_hac,
+        "dm_statistic": dm_stat,
+        "dm_p_value": dm_p,
+        "bandwidth": bandwidth,
+    }
+
+
 def _paired_stats(
     agent_costs: List[float],
     baseline_costs: List[float],
     baseline_name: str,
 ) -> StatisticalSummary:
-    """Paired t-test + 95% CI on per-window savings (baseline - agent)."""
+    """Paired t-test + Diebold-Mariano + 95% CI (baseline - agent savings).
+
+    Reports BOTH the classic paired t-test (for backward compatibility)
+    AND the Diebold-Mariano test with Newey-West HAC standard errors
+    (the literature standard for forecast evaluation from Diebold & Mariano 1995).
+    """
     a = np.asarray(agent_costs, dtype=float)
     b = np.asarray(baseline_costs, dtype=float)
     savings = b - a
@@ -311,27 +417,26 @@ def _paired_stats(
         std = 0.0
         se = 0.0
 
-    # Paired t-test; SciPy if available, otherwise compute manually.
     try:
         from scipy.stats import ttest_rel
         t_stat, p_value = ttest_rel(b, a)
         t_stat = float(t_stat)
         p_value = float(p_value)
-    except ImportError:  # pragma: no cover
+    except ImportError:
         if se > 0:
             t_stat = mean / se
-            # No scipy -> can't compute p-value cleanly. Leave NaN.
             p_value = float("nan")
         else:
             t_stat = 0.0
             p_value = float("nan")
 
-    # 95% CI using t-critical for n-1 dof; fall back to z=1.96 when n is large.
     try:
         from scipy.stats import t as t_dist
         crit = float(t_dist.ppf(0.975, df=max(1, n - 1))) if n > 1 else 1.96
-    except ImportError:  # pragma: no cover
+    except ImportError:
         crit = 1.96
+
+    dm_result = _diebold_mariano(agent_costs, baseline_costs)
 
     return StatisticalSummary(
         baseline_name=baseline_name,
@@ -343,6 +448,11 @@ def _paired_stats(
         p_value=p_value,
         ci95_low=mean - crit * se,
         ci95_high=mean + crit * se,
+        dm_se_hac=dm_result["se_hac"],
+        dm_statistic=dm_result["dm_statistic"],
+        dm_p_value=dm_result["dm_p_value"],
+        dm_bandwidth=dm_result["bandwidth"],
+        dm_significant=dm_result["dm_p_value"] < 0.05,
     )
 
 
@@ -458,6 +568,9 @@ def run_backtest(
         make_random_walk_forecast,
         baseline_cost_spot,
         baseline_cost_equal_thirds,
+        baseline_cost_random_walk,
+        baseline_cost_moving_average,
+        baseline_cost_always_horizon_6,
     )
 
     eval_horizons = [1, 3, 6]
@@ -472,7 +585,8 @@ def run_backtest(
 
         # Historical context for this window
         hist_start = max(0, eval_idx - BACKTEST_WINDOW_MONTHS)
-        hist_prices = [prices[d] for d in sorted_dates[hist_start:eval_idx + 1]]
+        # Full history for PSY bubble detection (Friedrich et al. 2019 needs long lookback)
+        hist_prices = [prices[d] for d in sorted_dates[:eval_idx + 1]]
 
         # Trend from trailing data
         trend = _determine_trend(hist_prices)
@@ -536,20 +650,32 @@ def run_backtest(
         realized_equal_thirds = baseline_cost_equal_thirds(
             realized_by_h, allowances_needed, horizons=eval_horizons,
         )
+        past_prices_for_rw = [prices[d] for d in sorted_dates[:eval_idx + 1]]
+        realized_random_walk = baseline_cost_random_walk(
+            past_prices_for_rw, spot_price, realized_by_h, allowances_needed, eval_horizons,
+        )
+        realized_ma = baseline_cost_moving_average(
+            past_prices_for_rw, spot_price, realized_by_h, allowances_needed, eval_horizons,
+        )
+        realized_always_6 = baseline_cost_always_horizon_6(realized_by_h, allowances_needed)
 
         savings_spot = realized_spot - realized_agent
-        if realized_equal_thirds is not None:
-            savings_equal_thirds = realized_equal_thirds - realized_agent
-        else:
-            savings_equal_thirds = None
+        savings_equal_thirds = (realized_equal_thirds - realized_agent) if realized_equal_thirds is not None else None
+        savings_rw = (realized_random_walk - realized_agent) if realized_random_walk is not None else None
+        savings_ma = (realized_ma - realized_agent) if realized_ma is not None else None
+        savings_a6 = (realized_always_6 - realized_agent) if realized_always_6 is not None else None
 
         logger.info(
             "Backtest window %s: strategy=%s realized=EUR%.0f "
-            "(vs spot=EUR%.0f -> %+.0f, vs 1/3s=EUR%s -> %s)",
+            "(vs spot=EUR%.0f -> %+.0f, vs 1/3s=EUR%s -> %s, "
+            "vs RW=%s, vs MA=%s, vs A6=%s)",
             eval_date, procurement.strategy,
             realized_agent, realized_spot, savings_spot,
             "n/a" if realized_equal_thirds is None else f"{realized_equal_thirds:.0f}",
             "n/a" if savings_equal_thirds is None else f"{savings_equal_thirds:+.0f}",
+            "n/a" if savings_rw is None else f"{savings_rw:+.0f}",
+            "n/a" if savings_ma is None else f"{savings_ma:+.0f}",
+            "n/a" if savings_a6 is None else f"{savings_a6:+.0f}",
         )
 
         window = BacktestWindow(
@@ -561,8 +687,14 @@ def run_backtest(
             realized_cost_agent=realized_agent,
             realized_cost_spot=realized_spot,
             realized_cost_equal_thirds=realized_equal_thirds,
+            realized_cost_random_walk=realized_random_walk,
+            realized_cost_moving_average=realized_ma,
+            realized_cost_always_6=realized_always_6,
             savings_vs_spot=savings_spot,
             savings_vs_equal_thirds=savings_equal_thirds,
+            savings_vs_random_walk=savings_rw,
+            savings_vs_moving_average=savings_ma,
+            savings_vs_always_6=savings_a6,
             regime_level=decision.regime.level,
             epu_level=decision.epu.level if decision.epu else "N/A",
             epu_value=decision.epu.epu_value if decision.epu else float("nan"),
@@ -595,7 +727,7 @@ def run_backtest(
         result.strategy_counts[w.procurement_strategy] = result.strategy_counts.get(w.procurement_strategy, 0) + 1
         result.regime_breakdown[w.regime_level] = result.regime_breakdown.get(w.regime_level, 0) + 1
 
-    # ---- Statistical tests against baselines ----
+    # ---- Statistical tests against baselines (paired t + Diebold-Mariano) ----
     agent_costs = [w.realized_cost_agent for w in result.windows]
     spot_costs = [w.realized_cost_spot for w in result.windows]
     result.stats_vs_spot = _paired_stats(agent_costs, spot_costs, "buy_all_at_spot")
@@ -608,6 +740,33 @@ def run_backtest(
         a_costs = [p[0] for p in equal_thirds_pairs]
         e_costs = [p[1] for p in equal_thirds_pairs]
         result.stats_vs_equal_thirds = _paired_stats(a_costs, e_costs, "equal_thirds_1_3_6")
+
+    rw_pairs = [
+        (w.realized_cost_agent, w.realized_cost_random_walk)
+        for w in result.windows if w.realized_cost_random_walk is not None
+    ]
+    if rw_pairs:
+        result.stats_vs_random_walk = _paired_stats(
+            [p[0] for p in rw_pairs], [p[1] for p in rw_pairs], "random_walk_forecast",
+        )
+
+    ma_pairs = [
+        (w.realized_cost_agent, w.realized_cost_moving_average)
+        for w in result.windows if w.realized_cost_moving_average is not None
+    ]
+    if ma_pairs:
+        result.stats_vs_moving_average = _paired_stats(
+            [p[0] for p in ma_pairs], [p[1] for p in ma_pairs], "moving_average",
+        )
+
+    a6_pairs = [
+        (w.realized_cost_agent, w.realized_cost_always_6)
+        for w in result.windows if w.realized_cost_always_6 is not None
+    ]
+    if a6_pairs:
+        result.stats_vs_always_6 = _paired_stats(
+            [p[0] for p in a6_pairs], [p[1] for p in a6_pairs], "always_horizon_6",
+        )
 
     return result
 
@@ -647,27 +806,52 @@ def format_backtest_report(bt: BacktestResult, prices: Dict[str, float]) -> str:
         if stats is None:
             return ["  (no data)"]
         sig = "**" if stats.p_value < 0.05 else "  "
+        dm_sig = "**" if stats.dm_p_value < 0.05 else "  "
+        dm_mark = " (SIGNIFICANT at 5%)" if stats.dm_significant else ""
         return [
             f"  n = {stats.n} paired windows",
             f"  Mean savings:   EUR {stats.mean_savings:>+14,.0f}",
             f"  Std deviation:  EUR {stats.std_savings:>+14,.0f}",
-            f"  Std error:      EUR {stats.se_savings:>+14,.0f}",
-            f"  Paired t-stat:   {stats.t_statistic:>+8.3f}",
+            f"  --- Classic paired t-test ---",
+            f"  SE (naive):     EUR {stats.se_savings:>+14,.0f}",
+            f"  t-statistic:     {stats.t_statistic:>+8.3f}",
             f"  p-value:         {stats.p_value:>8.4f}  {sig}",
             f"  95% CI:         [EUR {stats.ci95_low:>+12,.0f}, EUR {stats.ci95_high:>+12,.0f}]",
+            f"  --- Diebold-Mariano (Newey-West HAC, h={stats.dm_bandwidth}) ---",
+            f"  SE (HAC):       EUR {stats.dm_se_hac:>+14,.0f}",
+            f"  DM statistic:    {stats.dm_statistic:>+8.3f}",
+            f"  DM p-value:      {stats.dm_p_value:>8.4f}  {dm_sig}{dm_mark}",
         ]
 
     lines.extend([
         "",
-        "  --- STATS: agent vs BUY-ALL-AT-SPOT (paired t-test) ---",
+        "  --- STATS: agent vs BUY-ALL-AT-SPOT (paired t-test + Diebold-Mariano) ---",
     ])
     lines.extend(_fmt_stats(bt.stats_vs_spot))
 
     lines.extend([
         "",
-        "  --- STATS: agent vs EQUAL THIRDS (1/3 at h=1, h=3, h=6) ---",
+        "  --- STATS: agent vs EQUAL THIRDS (paired t-test + Diebold-Mariano) ---",
     ])
     lines.extend(_fmt_stats(bt.stats_vs_equal_thirds))
+
+    lines.extend([
+        "",
+        "  --- STATS: agent vs RANDOM WALK FORECAST (naive benchmark) ---",
+    ])
+    lines.extend(_fmt_stats(bt.stats_vs_random_walk))
+
+    lines.extend([
+        "",
+        "  --- STATS: agent vs MOVING AVERAGE (trailing 6-month MA) ---",
+    ])
+    lines.extend(_fmt_stats(bt.stats_vs_moving_average))
+
+    lines.extend([
+        "",
+        "  --- STATS: agent vs ALWAYS HORIZON-6 (extreme back-load) ---",
+    ])
+    lines.extend(_fmt_stats(bt.stats_vs_always_6))
 
     lines.extend([
         "",
@@ -688,15 +872,34 @@ def format_backtest_report(bt: BacktestResult, prices: Dict[str, float]) -> str:
     lines.extend([
         "",
         f"  --- WINDOW DETAILS (last 10, realized costs) ---",
-        f"  {'Date':<12} {'Spot':>6} {'Strategy':<10} {'Agent EUR':>11} {'vs Spot':>10} {'vs 1/3s':>10} {'Regime':<8}",
-        f"  {'-' * 75}",
+        f"  {'Date':<12} {'Spot':>6} {'Strategy':<10} {'Agent EUR':>11} {'vs Spot':>10} {'vs 1/3s':>10} {'vs RW':>10} {'vs A6':>10} {'Regime':<8}",
+        f"  {'-' * 105}",
     ])
     for w in bt.windows[-10:]:
         eq = "    n/a" if w.savings_vs_equal_thirds is None else f"{w.savings_vs_equal_thirds:>+10,.0f}"
+        rw = "    n/a" if w.savings_vs_random_walk is None else f"{w.savings_vs_random_walk:>+10,.0f}"
+        a6 = "    n/a" if w.savings_vs_always_6 is None else f"{w.savings_vs_always_6:>+10,.0f}"
         lines.append(
             f"  {w.evaluation_date:<12} EUR{w.spot_price:>3.0f} "
             f"{w.procurement_strategy:<10} {w.realized_cost_agent:>11,.0f} "
-            f"{w.savings_vs_spot:>+10,.0f} {eq} {w.regime_level:<8}"
+            f"{w.savings_vs_spot:>+10,.0f} {eq} {rw} {a6} {w.regime_level:<8}"
+        )
+
+    # ---- Baseline summary (Diebold-Mariano significance) ----
+    lines.extend([
+        "",
+        f"  --- BASELINE COMPARISON SUMMARY (Diebold-Mariano) ---",
+        f"  {'Baseline':<25} {'n':>4} {'Mean':>12} {'DM stat':>9} {'DM p-value':>11} {'Signif':>7}",
+        f"  {'-' * 75}",
+    ])
+    for stats in [bt.stats_vs_spot, bt.stats_vs_equal_thirds, bt.stats_vs_random_walk,
+                  bt.stats_vs_moving_average, bt.stats_vs_always_6]:
+        if stats is None:
+            continue
+        sig = "YES" if stats.dm_significant else " no"
+        lines.append(
+            f"  {stats.baseline_name:<25} {stats.n:>4} {stats.mean_savings:>+12,.0f} "
+            f"{stats.dm_statistic:>+9.3f} {stats.dm_p_value:>11.4f} {sig:>7}"
         )
 
     lines.append("")

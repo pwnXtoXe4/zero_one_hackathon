@@ -15,3 +15,4 @@ from .epu_modulator import EpuModulator, EpuState
 from .regime_enhancer import RegimeBand, get_confidence_multiplier
 from .driver_filter import DriverFilter, DriverBias
 from .structural_context import StructuralContext, StructuralBackdrop
+from .psy_bubble import psy_test, BubbleResult
