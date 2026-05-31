@@ -1,4 +1,7 @@
-import { CartesianGrid, ComposedChart, Line, ReferenceArea, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import {
+  Area, CartesianGrid, ComposedChart, Line, ReferenceArea, ReferenceLine,
+  ResponsiveContainer, Tooltip, XAxis, YAxis,
+} from 'recharts'
 import { Card, CHANNEL_COLOR, CHANNEL_LABEL } from './primitives'
 import type { EmissionsOutlook, ExecutionPlan, ForecastPoint, Scenario, Tranche } from '@/data/types'
 import { eur, tons } from '@/lib/utils'
@@ -25,7 +28,6 @@ function TipBox({ active, payload, label }: any) {
   const cum = get('cumP50')
   const base = get('cumBase')
   const span = get('cumSpan')
-  const price = get('priceP50')
   return (
     <div className="space-y-0.5 rounded-lg border border-border bg-surface/95 px-3 py-2 text-xs shadow-card backdrop-blur-xl">
       <div className="mb-1 font-medium text-ink">{label} 2026</div>
@@ -33,35 +35,24 @@ function TipBox({ active, payload, label }: any) {
       {base != null && span != null && +span > 0 && (
         <div className="flex justify-between gap-4"><span className="text-muted">p10–p90</span><span className="font-mono text-ink">{emTick(+base)} – {emTick(+base + +span)}</span></div>
       )}
-      {price != null && <div className="flex justify-between gap-4"><span className="text-muted">EUA p50</span><span className="font-mono text-cool">{eur(+price)}</span></div>}
     </div>
   )
 }
 
 export function CarbonEdgeTimeline({
-  outlook, forecast, plan, scenario,
+  outlook, plan,
 }: {
   outlook: EmissionsOutlook
-  forecast: ForecastPoint[]
+  forecast?: ForecastPoint[]
   plan: ExecutionPlan
-  scenario: Scenario
+  scenario?: Scenario
 }) {
-  const shock = scenario === 'shock'
-  const priceAccent = shock ? '#D97706' : '#2563EB'
-  const priceByLabel = new Map(forecast.map((f) => [f.label, f]))
-
-  const data = outlook.months.map((m) => {
-    const f = priceByLabel.get(m.label)
-    return {
-      label: m.label,
-      cumP50: m.cumP50,
-      cumBase: m.cumP10,
-      cumSpan: m.cumP90 - m.cumP10,
-      priceP50: f?.p50 ?? null,
-      priceBase: f ? f.p05 : null,
-      priceSpan: f ? +(f.p95 - f.p05).toFixed(2) : null,
-    }
-  })
+  const data = outlook.months.map((m) => ({
+    label: m.label,
+    cumP50: m.cumP50,
+    cumBase: m.cumP10,
+    cumSpan: m.cumP90 - m.cumP10,
+  }))
 
   // Procurement actions placed on the timeline (grouped by month).
   const execTranches = plan.tranches.filter((t) => t.status !== 'WAIT')
@@ -93,17 +84,21 @@ export function CarbonEdgeTimeline({
           <span className="flex items-center gap-1.5"><span className="h-2.5 w-4 rounded-sm bg-cool/25" />cumulative p10–p90</span>
           <span className="flex items-center gap-1.5"><span className="h-0.5 w-4 rounded bg-[#64748B]" style={{ borderTop: '2px dashed #64748B' }} />free allocation</span>
           {os && <span className="flex items-center gap-1.5"><span className="h-2.5 w-4 rounded-sm bg-amber/20" />overshoot zone</span>}
-          <span className="flex items-center gap-1.5"><span className="h-2.5 w-4 rounded-sm" style={{ background: priceAccent, opacity: 0.25 }} />EUA price band</span>
         </div>
       </div>
 
       <div className="h-[340px] w-full">
         <ResponsiveContainer>
           <ComposedChart data={data} margin={{ top: 10, right: 6, bottom: 0, left: 6 }}>
+            <defs>
+              <linearGradient id="emBand" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#2563EB" stopOpacity={0.26} />
+                <stop offset="100%" stopColor="#2563EB" stopOpacity={0.06} />
+              </linearGradient>
+            </defs>
             <CartesianGrid stroke="#EDF1F6" vertical={false} />
             <XAxis dataKey="label" tick={{ fill: '#94A3B8', fontSize: 11 }} tickLine={false} axisLine={false} />
             <YAxis yAxisId="em" tick={{ fill: '#94A3B8', fontSize: 11 }} tickLine={false} axisLine={false} width={52} tickFormatter={emTick} domain={[0, 'dataMax']} />
-            <YAxis yAxisId="price" orientation="right" tick={{ fill: priceAccent, fontSize: 11 }} tickLine={false} axisLine={false} width={42} domain={['dataMin-4', 'dataMax+4']} tickFormatter={(v) => '€' + v} />
             <Tooltip content={<TipBox />} cursor={{ stroke: '#CBD5E1', strokeDasharray: '3 3' }} />
 
             {/* Overshoot zone */}
@@ -113,7 +108,9 @@ export function CarbonEdgeTimeline({
             <ReferenceLine yAxisId="em" y={outlook.freeAllocation} stroke="#64748B" strokeDasharray="6 4"
               label={{ value: `free allocation ${emTick(outlook.freeAllocation)}`, fill: '#64748B', fontSize: 10, position: 'insideBottomRight' }} />
 
-            {/* Cumulative emissions median */}
+            {/* Cumulative emissions band + median */}
+            <Area yAxisId="em" dataKey="cumBase" stackId="em" stroke="none" fill="transparent" isAnimationActive={false} />
+            <Area yAxisId="em" dataKey="cumSpan" stackId="em" stroke="none" fill="url(#emBand)" isAnimationActive={false} />
             <Line yAxisId="em" dataKey="cumP50" stroke="#2563EB" strokeWidth={2.4} dot={false} isAnimationActive={false} />
 
             {/* Procurement action marker — placed before the overshoot */}
