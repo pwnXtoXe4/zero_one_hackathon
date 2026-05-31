@@ -218,12 +218,32 @@ def parse_forecast_response(
                 month_offset = _months_from_now(dt, reference_date)
 
                 median = point.get("forecast", 0)
-                qf = point.get("quantile_forecast", {})
+                qf_raw = point.get("quantile_forecast", {})
+
+                # Normalize quantile keys: Sybilion may return "0.50", "0.5",
+                # or "0.500" for the same quantile. Map all to float keys so
+                # lookups are format-agnostic.
+                qf: Dict[float, float] = {}
+                for k, v in qf_raw.items():
+                    try:
+                        qf[float(k)] = float(v)
+                    except (ValueError, TypeError):
+                        continue
+
+                def _q(key: float, fallback_factor: float) -> float:
+                    v = qf.get(key)
+                    if v is not None:
+                        return v
+                    # Fuzzy: try keys within ±0.005
+                    for qk in qf:
+                        if abs(float(qk) - key) < 0.005:
+                            return float(qf[qk])
+                    return float(median) * fallback_factor
 
                 forecast_series[month_offset] = {
                     "value": median,
-                    "low": float(qf.get("0.10", qf.get("0.05", median * 0.85))),
-                    "high": float(qf.get("0.90", qf.get("0.95", median * 1.15))),
+                    "low": _q(0.10, 0.85),
+                    "high": _q(0.90, 1.15),
                 }
             except (ValueError, TypeError) as exc:
                 logger.debug("Skipped forecast point %r: %s", date_str, exc)

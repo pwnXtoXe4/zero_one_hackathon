@@ -36,6 +36,51 @@ DEFAULT_CVAR_ALPHA = 0.95       # 5% worst outcomes
 
 
 @dataclass
+class AllocationConstraints:
+    """Hard allocation bounds derived from the enhancement layer signals.
+
+    Each field is a fraction in [0, 1]; values outside the natural extremes
+    (e.g. min_spot_fraction=0.0, max_spot_fraction=1.0) are treated as inactive.
+    `binding_reasons` captures *why* a constraint was added so the agent can
+    explain its plan.
+
+    The optimizer enforces these as SLSQP constraints AND filters infeasible
+    vertex candidates. If two constraints conflict (e.g. min_spot > max_spot)
+    the optimizer silently drops the conflict pair and logs it.
+    """
+    min_spot_fraction: float = 0.0
+    max_spot_fraction: float = 1.0
+    min_front_fraction: float = 0.0      # min mass at horizons <= 3 (excludes spot)
+    max_back_fraction: float = 1.0       # max mass at horizons >= 6
+    max_single_fraction: float = 1.0     # cap any single bucket -- forces spread
+    binding_reasons: List[str] = field(default_factory=list)
+
+    def is_trivial(self) -> bool:
+        return (
+            self.min_spot_fraction <= 0.0
+            and self.max_spot_fraction >= 1.0
+            and self.min_front_fraction <= 0.0
+            and self.max_back_fraction >= 1.0
+            and self.max_single_fraction >= 1.0
+        )
+
+    def resolve_conflicts(self) -> List[str]:
+        """Detect infeasible combinations and relax them. Returns dropped reasons."""
+        dropped: List[str] = []
+        if self.min_spot_fraction > self.max_spot_fraction:
+            dropped.append(
+                f"spot min({self.min_spot_fraction:.2f}) > max({self.max_spot_fraction:.2f}) -- both dropped"
+            )
+            self.min_spot_fraction = 0.0
+            self.max_spot_fraction = 1.0
+        # front-load + back-load floor/ceiling conflict
+        if self.min_front_fraction + self.min_spot_fraction > 1.0:
+            dropped.append("min_spot + min_front > 1.0 -- min_front dropped")
+            self.min_front_fraction = max(0.0, 1.0 - self.min_spot_fraction)
+        return dropped
+
+
+@dataclass
 class PurchaseWindow:
     """A single purchase event in the procurement plan."""
     horizon: int            # months from now (1-12)
@@ -60,6 +105,12 @@ class ProcurementPlan:
     worst_case_savings: float
     strategy: str           # "FRONT_LOAD", "BALANCED", "BACK_LOAD", "LUMP_SUM"
     reasoning: str
+    # Diagnostics populated by callers (decision_agent.make_procurement_decision)
+    # for audit / trace logging. Keys: 'driver_shift', 'structural_shift',
+    # 'demand_shift', 'total_mean_shift', 'trend_log_return',
+    # 'trend_guard_active', 'min_spot', 'max_spot', 'max_back', 'max_single',
+    # 'constraint_reasons', 'risk_lambda'.
+    diagnostics: Dict[str, object] = field(default_factory=dict)
 
     def summary(self) -> str:
         lines = [f"Procurement Plan: {self.total_tons:,} tons across {len(self.windows)} windows",
@@ -117,6 +168,7 @@ def optimize_procurement(
     risk_lambda: float = DEFAULT_RISK_LAMBDA,
     cvar_alpha: float = DEFAULT_CVAR_ALPHA,
     n_paths: int = DEFAULT_MONTE_CARLO_PATHS,
+    constraints: Optional[AllocationConstraints] = None,
 ) -> ProcurementPlan:
     """
     CVaR optimization of procurement schedule.
@@ -203,11 +255,80 @@ def optimize_procurement(
     else:
         x0 = np.ones(n_choices) / n_choices
 
+    # ---- Resolve layer-driven allocation constraints ----
+    alloc_cons = constraints if constraints is not None else AllocationConstraints()
+    dropped = alloc_cons.resolve_conflicts()
+    for d in dropped:
+        logger.warning("Constraint conflict: %s", d)
+
+    # Map fractions to spot/front/back masks for constraint evaluation.
+    # Front bucket: horizons in [1, 3] (exclusive of spot, inclusive of h<=3).
+    # Back bucket: horizons >= 6.
+    spot_idx = 0
+    front_idx = [i for i, h in enumerate(all_horizons) if 0 < h <= 3]
+    back_idx = [i for i, h in enumerate(all_horizons) if h >= 6]
+
+    def _feasible(frac: np.ndarray) -> bool:
+        if frac[spot_idx] < alloc_cons.min_spot_fraction - 1e-6:
+            return False
+        if frac[spot_idx] > alloc_cons.max_spot_fraction + 1e-6:
+            return False
+        if front_idx and float(np.sum(frac[front_idx])) < alloc_cons.min_front_fraction - 1e-6:
+            return False
+        if back_idx and float(np.sum(frac[back_idx])) > alloc_cons.max_back_fraction + 1e-6:
+            return False
+        if float(np.max(frac)) > alloc_cons.max_single_fraction + 1e-6:
+            return False
+        return True
+
+    def _project(frac: np.ndarray) -> np.ndarray:
+        """Best-effort projection to the feasible set (heuristic, not exact)."""
+        f = np.clip(np.asarray(frac, dtype=float), 0.0, 1.0)
+        # Cap single
+        if alloc_cons.max_single_fraction < 1.0:
+            f = np.minimum(f, alloc_cons.max_single_fraction)
+        # Cap spot
+        if f[spot_idx] > alloc_cons.max_spot_fraction:
+            excess = f[spot_idx] - alloc_cons.max_spot_fraction
+            f[spot_idx] = alloc_cons.max_spot_fraction
+            # redistribute excess uniformly across non-spot
+            non_spot = [i for i in range(n_choices) if i != spot_idx]
+            if non_spot:
+                f[non_spot] += excess / len(non_spot)
+        # Cap back
+        if back_idx and float(np.sum(f[back_idx])) > alloc_cons.max_back_fraction:
+            mass = float(np.sum(f[back_idx]))
+            excess = mass - alloc_cons.max_back_fraction
+            f[back_idx] *= (alloc_cons.max_back_fraction / max(mass, 1e-9))
+            # redistribute excess to front bucket (or spot)
+            target = front_idx or [spot_idx]
+            for j in target:
+                f[j] += excess / len(target)
+        # Floor spot
+        if f[spot_idx] < alloc_cons.min_spot_fraction:
+            deficit = alloc_cons.min_spot_fraction - f[spot_idx]
+            f[spot_idx] = alloc_cons.min_spot_fraction
+            non_spot = [i for i in range(n_choices) if i != spot_idx]
+            if non_spot:
+                mass = float(np.sum(f[non_spot]))
+                if mass > deficit:
+                    f[non_spot] *= max(0.0, (mass - deficit) / mass)
+                else:
+                    f[non_spot] = 0.0
+        # Floor front mass
+        if front_idx and float(np.sum(f[front_idx])) < alloc_cons.min_front_fraction:
+            deficit = alloc_cons.min_front_fraction - float(np.sum(f[front_idx]))
+            for j in front_idx:
+                f[j] += deficit / len(front_idx)
+        # Renormalise to sum to 1
+        s = float(np.sum(f))
+        return f / s if s > 0 else np.ones(n_choices) / n_choices
+
     # ---- Constrained optimization with multi-start ----
     # The CVaR objective is piecewise-linear (sorted-mean of MC paths) so
     # gradient-based methods get stuck. We evaluate a small set of structural
     # candidates (each lump-sum vertex, equal split, the front-loaded prior)
-    # and use the best as the starting point for scipy.SLSQP refinement.
+    # and use the best feasible one as the SLSQP starting point.
     candidates: List[np.ndarray] = []
     # All-vertex candidates: one-hot at each choice (LUMP_SUM at each horizon)
     for i in range(n_choices):
@@ -218,33 +339,76 @@ def optimize_procurement(
     candidates.append(np.ones(n_choices) / n_choices)
     # Front-loaded prior
     candidates.append(x0)
+    # Constraint-saturated candidates: bind floors/ceilings.
+    if alloc_cons.min_spot_fraction > 0.0:
+        v = np.zeros(n_choices)
+        v[spot_idx] = alloc_cons.min_spot_fraction
+        rest = 1.0 - alloc_cons.min_spot_fraction
+        other = [i for i in range(n_choices) if i != spot_idx]
+        for j in other:
+            v[j] = rest / len(other)
+        candidates.append(v)
+    if alloc_cons.max_spot_fraction < 1.0:
+        v = np.zeros(n_choices)
+        v[spot_idx] = alloc_cons.max_spot_fraction
+        rest = 1.0 - alloc_cons.max_spot_fraction
+        other = [i for i in range(n_choices) if i != spot_idx]
+        for j in other:
+            v[j] = rest / len(other)
+        candidates.append(v)
 
     best_obj = float("inf")
-    best_sol = x0
+    best_sol = _project(x0)
     for c in candidates:
-        val = objective(c)
+        c_proj = _project(c) if not _feasible(c) else c
+        if not _feasible(c_proj):
+            continue
+        val = objective(c_proj)
         if val < best_obj:
             best_obj = val
-            best_sol = c
+            best_sol = c_proj
     logger.debug(
-        "Best candidate objective=%.0f at fractions=%s",
+        "Best feasible candidate objective=%.0f at fractions=%s",
         best_obj, ", ".join(f"{f:.2f}" for f in best_sol),
     )
 
     solver_status = "best-candidate"
     if _HAVE_SCIPY:
-        constraints = [{"type": "eq", "fun": lambda f: float(np.sum(f) - 1.0)}]
+        scipy_cons = [{"type": "eq", "fun": lambda f: float(np.sum(f) - 1.0)}]
+        # Spot lower bound
+        if alloc_cons.min_spot_fraction > 0.0:
+            min_s = alloc_cons.min_spot_fraction
+            scipy_cons.append({"type": "ineq", "fun": lambda f, m=min_s: float(f[spot_idx] - m)})
+        # Spot upper bound
+        if alloc_cons.max_spot_fraction < 1.0:
+            max_s = alloc_cons.max_spot_fraction
+            scipy_cons.append({"type": "ineq", "fun": lambda f, m=max_s: float(m - f[spot_idx])})
+        # Front floor
+        if front_idx and alloc_cons.min_front_fraction > 0.0:
+            min_f = alloc_cons.min_front_fraction
+            idx = list(front_idx)
+            scipy_cons.append({"type": "ineq", "fun": lambda f, m=min_f, ix=idx: float(np.sum(f[ix]) - m)})
+        # Back ceiling
+        if back_idx and alloc_cons.max_back_fraction < 1.0:
+            max_b = alloc_cons.max_back_fraction
+            idx = list(back_idx)
+            scipy_cons.append({"type": "ineq", "fun": lambda f, m=max_b, ix=idx: float(m - np.sum(f[ix]))})
+        # Single cap (per-bucket)
+        if alloc_cons.max_single_fraction < 1.0:
+            ms = alloc_cons.max_single_fraction
+            for i in range(n_choices):
+                scipy_cons.append({"type": "ineq", "fun": lambda f, m=ms, idx=i: float(m - f[idx])})
         bounds = [(0.0, 1.0)] * n_choices
         try:
             result = minimize(
                 objective, best_sol, method="SLSQP",
-                bounds=bounds, constraints=constraints,
+                bounds=bounds, constraints=scipy_cons,
                 options={"ftol": 1e-7, "maxiter": 300},
             )
             if result.success and abs(result.x.sum() - 1.0) < 0.05:
                 refined = np.clip(result.x, 0.0, 1.0)
                 refined = refined / refined.sum()
-                if objective(refined) < best_obj:
+                if _feasible(refined) and objective(refined) < best_obj:
                     best_sol = refined
                     best_obj = objective(refined)
                     solver_status = "best-candidate + SLSQP refinement"
@@ -373,6 +537,8 @@ def optimize_procurement(
         parts.append("Drivers bearish: back-loading prior")
     if not parts:
         parts.append("Standard allocation based on Sybilion forecast bands")
+    if alloc_cons.binding_reasons:
+        parts.extend(alloc_cons.binding_reasons)
 
     return ProcurementPlan(
         total_tons=total_tons,

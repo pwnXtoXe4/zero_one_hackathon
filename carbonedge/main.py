@@ -15,6 +15,7 @@ Flow:
 
 import json
 import logging
+import os
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -109,6 +110,94 @@ def get_current_ets_price(ts_data: Dict[str, float]) -> float:
     """Get the latest ETS price from the time series."""
     latest = max(ts_data.keys())
     return float(ts_data[latest])
+
+
+def submit_live_sybilion_forecast(
+    ts_data: Dict[str, float],
+    target_spec: Dict[str, Any],
+    soft_horizon: int = 6,
+    max_wait: int = 600,
+    poll_interval: int = 10,
+) -> Optional[Dict[str, Any]]:
+    """Submit a live forecast to Sybilion and return its artifact paths.
+
+    Returns
+    -------
+    Dict with keys 'forecast', 'signals', 'backtest' mapping to the temp file
+    paths the artifacts were written to. Returns None if the live API isn't
+    reachable (no token, SDK missing, or submission error) so the caller can
+    fall back to the manual-submission flow.
+    """
+    api_token = os.environ.get("SYBILION_API_TOKEN")
+    if not api_token:
+        logger.warning(
+            "SYBILION_API_TOKEN not set in environment; cannot make live call. "
+            "Falling back to manual submission flow."
+        )
+        return None
+
+    try:
+        import pandas as pd
+        from src.sybilion.client import SybilionWrapper
+    except ImportError as exc:
+        logger.warning("Live submission requires pandas + sybilion SDK: %s", exc)
+        return None
+
+    series = pd.Series({k: float(v) for k, v in ts_data.items()}, name=target_spec.get("title", "eu_ets_price"))
+    series.index = pd.to_datetime(series.index)
+    series = series.sort_index()
+
+    wrapper = SybilionWrapper(api_token=api_token, cache_dir=str(DATA_DIR / "prepared"))
+    if wrapper.mode != "live":
+        logger.warning("SybilionWrapper fell back to %s mode despite token; aborting live call.", wrapper.mode)
+        return None
+
+    logger.info(
+        "Submitting LIVE Sybilion forecast: %d points (%s -> %s), horizon=%d, max_wait=%ds",
+        len(series), series.index.min(), series.index.max(), soft_horizon, max_wait,
+    )
+    print(f"  [Sybilion] Submitting live forecast ({len(series)} points, horizon {soft_horizon}mo)...")
+
+    try:
+        artifacts = wrapper.submit_and_wait(
+            series=series,
+            keywords=target_spec.get("keywords"),
+            horizon=soft_horizon,
+            title=target_spec.get("title", "EU ETS price forecast"),
+            description=target_spec.get("description", ""),
+            max_wait=max_wait,
+            poll_interval=poll_interval,
+            backtest=target_spec.get("backtest", True),
+        )
+    except Exception as exc:  # SDK can raise many things; treat all as soft failure
+        logger.error("Live Sybilion submission failed: %s", exc, exc_info=True)
+        print(f"  [Sybilion] Live submission failed: {exc}")
+        return None
+
+    # Persist artifacts so run_carbonedge_with_forecast can read them.
+    out_dir = DATA_DIR / "prepared"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    forecast_path = out_dir / "live_forecast.json"
+    signals_path = out_dir / "live_external_signals.json"
+    backtest_path = out_dir / "live_backtest_metrics.json"
+
+    with open(forecast_path, "w") as f:
+        json.dump(artifacts.forecast, f, indent=2)
+    paths: Dict[str, Any] = {"forecast": str(forecast_path)}
+
+    if artifacts.signals:
+        with open(signals_path, "w") as f:
+            json.dump(artifacts.signals, f, indent=2)
+        paths["signals"] = str(signals_path)
+
+    if artifacts.backtest:
+        with open(backtest_path, "w") as f:
+            json.dump(artifacts.backtest, f, indent=2)
+        paths["backtest"] = str(backtest_path)
+
+    logger.info("Live forecast artifacts written: %s", paths)
+    print(f"  [Sybilion] Live forecast received -> {forecast_path}")
+    return paths
 
 
 def main():
@@ -441,6 +530,25 @@ if __name__ == "__main__":
         action="store_true",
         help="Shorthand for --log-level WARNING.",
     )
+    parser.add_argument(
+        "--live",
+        action="store_true",
+        help=(
+            "Submit a LIVE forecast request to the Sybilion API instead of "
+            "preparing a request file for manual submission. Requires "
+            "SYBILION_API_TOKEN in the environment; falls back to the manual "
+            "flow if the live call fails."
+        ),
+    )
+    parser.add_argument(
+        "--no-backtest",
+        action="store_true",
+        help=(
+            "When used with --live, request a forecast WITHOUT Sybilion's "
+            "rolling-window backtest. Cuts compute time ~10x at the cost of "
+            "losing the official MAPE figure."
+        ),
+    )
     args = parser.parse_args()
 
     level = args.log_level
@@ -459,6 +567,39 @@ if __name__ == "__main__":
                 backtest_metrics_path=args.backtest_metrics,
             )
         )
+    elif args.live:
+        # Live API path: build the request, submit to Sybilion, run the agent
+        # on the returned forecast. Falls back to the manual flow on failure.
+        print("+==================================================+")
+        print("|   CarbonEdge -- LIVE Sybilion submission           |")
+        print("+==================================================+")
+        print()
+        ts_data = load_ets_data()
+        current_price = get_current_ets_price(ts_data)
+        print(f"      Latest price: EUR{current_price:.2f}/ton ({max(ts_data.keys())})")
+
+        target = dict(FORECAST_TARGETS["eu_ets_price"])
+        if args.no_backtest:
+            target["backtest"] = False
+            print("      [--no-backtest] Sybilion backtest cross-validation DISABLED for speed.")
+        paths = submit_live_sybilion_forecast(ts_data, target, soft_horizon=6)
+        if paths is None:
+            print(
+                "\n  [warning] Live submission unavailable -- falling back to "
+                "manual-submission flow."
+            )
+            result = main()
+            if isinstance(result, str):
+                print(result)
+        else:
+            print(
+                run_carbonedge_with_forecast(
+                    forecast_json_path=paths["forecast"],
+                    scenario=args.scenario,
+                    external_signals_path=paths.get("signals"),
+                    backtest_metrics_path=paths.get("backtest"),
+                )
+            )
     else:
         result = main()
         if isinstance(result, str):

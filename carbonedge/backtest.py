@@ -160,6 +160,46 @@ def _load_driver_importance() -> Dict[str, List[float]]:
 
 
 @dataclass
+class DecisionTrace:
+    """Structured per-window snapshot of every layer's state and the
+    constraints / shifts they produced. Lets us audit whether layers fire
+    for sensible reasons (or chaotically), and whether the trend guard
+    kicks in when expected."""
+    eval_date: str
+    spot_price: float
+    trailing_6mo_log_return: Optional[float]
+    trend_guard_active: bool
+    # Layer signals
+    regime_level: str
+    regime_multiplier: float
+    epu_level: str
+    epu_value: float
+    epu_spike: bool
+    epu_volatility_multiplier: float
+    driver_signal: str
+    driver_bias: float
+    structural_signal: str
+    structural_tightening_score: float
+    structural_inflection_year: int
+    demand_pressure: float
+    # Mean shifts applied
+    driver_shift: float
+    structural_shift: float
+    demand_shift: float
+    total_mean_shift: float
+    # Allocation constraints
+    min_spot: float
+    max_spot: float
+    max_back: float
+    max_single: float
+    constraint_reasons: List[str] = field(default_factory=list)
+    composite_score: float = 0.0
+    # Decision output
+    strategy: str = ""
+    allocation: Dict[str, int] = field(default_factory=dict)
+
+
+@dataclass
 class BacktestWindow:
     """Result of one backtest window — all costs are REALIZED (using actual
     future prices at each window's horizon), not forecast-implied."""
@@ -177,14 +217,14 @@ class BacktestWindow:
     realized_cost_spot: float
     realized_cost_equal_thirds: Optional[float]
     realized_cost_random_walk: Optional[float]
-    realized_cost_moving_average: Optional[float]
+    realized_cost_mean_reversion: Optional[float]
     realized_cost_always_6: Optional[float]
 
     # Convenience savings vs each baseline (positive = agent paid less)
     savings_vs_spot: float
     savings_vs_equal_thirds: Optional[float]
     savings_vs_random_walk: Optional[float]
-    savings_vs_moving_average: Optional[float]
+    savings_vs_mean_reversion: Optional[float]
     savings_vs_always_6: Optional[float]
 
     regime_level: str
@@ -193,6 +233,7 @@ class BacktestWindow:
     forecast_months: int
     band_width_ratio: float
     windows_detail: List[Dict] = field(default_factory=list)
+    trace: Optional[DecisionTrace] = None
 
 
 @dataclass
@@ -242,9 +283,10 @@ class BacktestResult:
     stats_vs_spot: Optional[StatisticalSummary] = None
     stats_vs_equal_thirds: Optional[StatisticalSummary] = None
     stats_vs_random_walk: Optional[StatisticalSummary] = None
-    stats_vs_moving_average: Optional[StatisticalSummary] = None
+    stats_vs_mean_reversion: Optional[StatisticalSummary] = None
     stats_vs_always_6: Optional[StatisticalSummary] = None
     forecast_mode: str = "naive"    # 'naive' (out-of-sample) or 'oracle'
+    step_months: int = 3            # BACKTEST_STEP_MONTHS used for this run
 
 
 def _determine_trend(prices: List[float], months: int = 6) -> str:
@@ -488,6 +530,14 @@ def run_backtest(
     allowances_needed: Optional[int] = None,
     seed: int = 42,
     forecast_mode: str = "naive",
+    warmup_months: Optional[int] = None,
+    step_months: Optional[int] = None,
+    min_windows: Optional[int] = None,
+    cadence_ticks_per_month: float = 1.0,
+    warmup_ticks: Optional[int] = None,
+    step_ticks: Optional[int] = None,
+    use_asymptotic_psy: bool = False,
+    psy_n_simulations: Optional[int] = None,
 ) -> BacktestResult:
     """
     Run end-to-end procurement backtest over rolling historical windows.
@@ -516,10 +566,33 @@ def run_backtest(
     if allowances_needed is None:
         allowances_needed = CARBON_EXPOSURE["eu_ets_allowances_needed_annually"]
 
+    # Per-run config (kwargs override module defaults; no global mutation).
+    # Convert month-scoped sizes to *ticks* using cadence_ticks_per_month so
+    # the same code can run on monthly (c=1.0), weekly (c~4.33) or daily
+    # (c~22) input series.
+    c = float(cadence_ticks_per_month)
+    if c <= 0:
+        raise ValueError(f"cadence_ticks_per_month must be > 0, got {c}")
+    eff_warmup_months = BACKTEST_WINDOW_MONTHS if warmup_months is None else int(warmup_months)
+    eff_step_months = BACKTEST_STEP_MONTHS if step_months is None else int(step_months)
+    eff_min = BACKTEST_MIN_WINDOWS if min_windows is None else int(min_windows)
+    # warmup_ticks / step_ticks (if provided) override the *_months convention
+    # so weekly / daily callers can express cadence directly.
+    eff_warmup = (
+        int(warmup_ticks)
+        if warmup_ticks is not None
+        else max(1, int(round(eff_warmup_months * c)))
+    )
+    eff_step = (
+        int(step_ticks)
+        if step_ticks is not None
+        else max(1, int(round(eff_step_months * c)))
+    )
+
     sorted_dates = sorted(prices.keys())
-    if len(sorted_dates) < BACKTEST_WINDOW_MONTHS + BACKTEST_MIN_WINDOWS:
+    if len(sorted_dates) < eff_warmup + eff_min:
         raise ValueError(
-            f"Need at least {BACKTEST_WINDOW_MONTHS + BACKTEST_MIN_WINDOWS} "
+            f"Need at least {eff_warmup + eff_min} "
             f"months of price data for a valid backtest. Have {len(sorted_dates)}."
         )
     logger.info(
@@ -552,28 +625,58 @@ def run_backtest(
             raise ValueError(f"start_date {start_date} not found in price data")
         start_idx = eval_indices[0]
     else:
-        start_idx = BACKTEST_WINDOW_MONTHS
+        start_idx = eff_warmup
 
-    eval_indices = list(range(start_idx, len(sorted_dates) - 1, BACKTEST_STEP_MONTHS))
+    eval_indices = list(range(start_idx, len(sorted_dates) - 1, eff_step))
     logger.info(
-        "Backtest: %d evaluation windows (start_idx=%d, step=%d months)",
-        len(eval_indices), start_idx, BACKTEST_STEP_MONTHS,
+        "Backtest: %d evaluation windows (start_idx=%d, step=%d ticks, cadence=%.2f ticks/month)",
+        len(eval_indices), start_idx, eff_step, c,
     )
+
+    # ---- Pre-compute PSY critical values for all window sizes ----
+    if not use_asymptotic_psy:
+        from .enhancement.psy_bubble import precompute_critical_values, PSY_N_SIMULATIONS
+        try:
+            T_values = [idx + 1 for idx in eval_indices]
+            min_win_psy = None  # let psy_test() default it
+            n_sim = psy_n_simulations or PSY_N_SIMULATIONS
+            logger.info(
+                "Backtest: pre-computing PSY critical values for %d T values "
+                "(n_sim=%d) — this may take a while on first run",
+                len(set(T_values)), n_sim,
+            )
+            precompute_critical_values(
+                T_values=T_values,
+                min_window=24,
+                n_simulations=n_sim,
+                seed=seed,
+            )
+        except Exception as exc:
+            logger.warning(
+                "PSY precompute failed (%s), falling back to asymptotic critical values. "
+                "Bubble detection will be approximate (~5%% size distortion vs bootstrap).",
+                exc,
+            )
 
     if forecast_mode not in ("naive", "oracle"):
         raise ValueError(f"forecast_mode must be 'naive' or 'oracle', got {forecast_mode!r}")
-    result = BacktestResult(forecast_mode=forecast_mode)
+    result = BacktestResult(forecast_mode=forecast_mode, step_months=eff_step_months)
     rng = np.random.default_rng(seed)
     from .forecast_baselines import (
         make_random_walk_forecast,
         baseline_cost_spot,
         baseline_cost_equal_thirds,
         baseline_cost_random_walk,
-        baseline_cost_moving_average,
+        baseline_cost_mean_reversion,
         baseline_cost_always_horizon_6,
     )
 
+    # Agent thinks in MONTHS. Translate to tick offsets for forecasts/realized
+    # lookups. For monthly cadence (c=1) this is identity; for weekly (c~4.33)
+    # h=1mo -> 4 ticks, h=3mo -> 13 ticks, h=6mo -> 26 ticks.
     eval_horizons = [1, 3, 6]
+    month_to_tick = {h: max(1, int(round(h * c))) for h in eval_horizons}
+    tick_horizons = [month_to_tick[h] for h in eval_horizons]
 
     for window_num, eval_idx in enumerate(eval_indices, 1):
         eval_date = sorted_dates[eval_idx]
@@ -584,7 +687,7 @@ def run_backtest(
         )
 
         # Historical context for this window
-        hist_start = max(0, eval_idx - BACKTEST_WINDOW_MONTHS)
+        hist_start = max(0, eval_idx - eff_warmup)
         # Full history for PSY bubble detection (Friedrich et al. 2019 needs long lookback)
         hist_prices = [prices[d] for d in sorted_dates[:eval_idx + 1]]
 
@@ -599,13 +702,28 @@ def run_backtest(
         # The oracle uses actual future + noise (legacy, biased upward).
         if forecast_mode == "naive":
             past_only = [prices[d] for d in sorted_dates[:eval_idx + 1]]
-            forecast = make_random_walk_forecast(
+            # Build forecast at tick offsets, then re-label by month for the agent.
+            fc_tick = make_random_walk_forecast(
                 historical_prices=past_only,
                 spot=spot_price,
-                horizons=eval_horizons,
+                horizons=tick_horizons,
                 target_name=f"naive_{eval_date}",
             )
+            forecast = ForecastResult(target_name=fc_tick.target_name)
+            forecast.current_value = fc_tick.current_value
+            forecast.backtest_accuracy = fc_tick.backtest_accuracy
+            for h_month in eval_horizons:
+                h_tick = month_to_tick[h_month]
+                if h_tick in fc_tick.forecast_points:
+                    forecast.forecast_points[h_month] = fc_tick.forecast_points[h_tick]
         else:
+            # Oracle mode is calibrated against monthly Sybilion artifacts; only
+            # supported at monthly cadence.
+            if c != 1.0:
+                raise ValueError(
+                    "forecast_mode='oracle' is only supported at monthly cadence "
+                    "(cadence_ticks_per_month=1.0)."
+                )
             forecast = _build_forecast_from_actuals(sorted_dates, prices, eval_idx, rng)
 
         # Build MAC curve
@@ -642,9 +760,15 @@ def run_backtest(
         procurement = decision.procurement
 
         # ---- Realized costs: what actually got paid given future prices ----
-        realized_by_h = _realized_prices_by_horizon(
-            sorted_dates, prices, eval_idx, eval_horizons,
+        # Look up at TICK offsets, then re-key by month so the agent's plan
+        # (which thinks in months) lines up with realized prices.
+        realized_by_tick = _realized_prices_by_horizon(
+            sorted_dates, prices, eval_idx, tick_horizons,
         )
+        realized_by_h = {
+            h_month: realized_by_tick[month_to_tick[h_month]]
+            for h_month in eval_horizons if month_to_tick[h_month] in realized_by_tick
+        }
         realized_agent = _realized_cost_for_plan(procurement, spot_price, realized_by_h)
         realized_spot = baseline_cost_spot(spot_price, allowances_needed)
         realized_equal_thirds = baseline_cost_equal_thirds(
@@ -654,7 +778,7 @@ def run_backtest(
         realized_random_walk = baseline_cost_random_walk(
             past_prices_for_rw, spot_price, realized_by_h, allowances_needed, eval_horizons,
         )
-        realized_ma = baseline_cost_moving_average(
+        realized_mr = baseline_cost_mean_reversion(
             past_prices_for_rw, spot_price, realized_by_h, allowances_needed, eval_horizons,
         )
         realized_always_6 = baseline_cost_always_horizon_6(realized_by_h, allowances_needed)
@@ -662,20 +786,57 @@ def run_backtest(
         savings_spot = realized_spot - realized_agent
         savings_equal_thirds = (realized_equal_thirds - realized_agent) if realized_equal_thirds is not None else None
         savings_rw = (realized_random_walk - realized_agent) if realized_random_walk is not None else None
-        savings_ma = (realized_ma - realized_agent) if realized_ma is not None else None
+        savings_mr = (realized_mr - realized_agent) if realized_mr is not None else None
         savings_a6 = (realized_always_6 - realized_agent) if realized_always_6 is not None else None
 
         logger.info(
             "Backtest window %s: strategy=%s realized=EUR%.0f "
             "(vs spot=EUR%.0f -> %+.0f, vs 1/3s=EUR%s -> %s, "
-            "vs RW=%s, vs MA=%s, vs A6=%s)",
+            "vs RW=%s, vs MR=%s, vs A6=%s)",
             eval_date, procurement.strategy,
             realized_agent, realized_spot, savings_spot,
             "n/a" if realized_equal_thirds is None else f"{realized_equal_thirds:.0f}",
             "n/a" if savings_equal_thirds is None else f"{savings_equal_thirds:+.0f}",
             "n/a" if savings_rw is None else f"{savings_rw:+.0f}",
-            "n/a" if savings_ma is None else f"{savings_ma:+.0f}",
+            "n/a" if savings_mr is None else f"{savings_mr:+.0f}",
             "n/a" if savings_a6 is None else f"{savings_a6:+.0f}",
+        )
+
+        # Build a structured trace from the decision and the plan's diagnostics
+        diag = procurement.diagnostics or {}
+        alloc_breakdown: Dict[str, int] = {}
+        for w in procurement.windows:
+            key = "SPOT" if w.label == "SPOT" else f"h{w.horizon}"
+            alloc_breakdown[key] = alloc_breakdown.get(key, 0) + int(w.tons)
+        trace = DecisionTrace(
+            eval_date=eval_date,
+            spot_price=float(spot_price),
+            trailing_6mo_log_return=diag.get("trend_log_return"),
+            trend_guard_active=bool(diag.get("trend_guard_active", False)),
+            regime_level=decision.regime.level,
+            regime_multiplier=decision.regime.multiplier,
+            epu_level=decision.epu.level if decision.epu else "N/A",
+            epu_value=decision.epu.epu_value if decision.epu else float("nan"),
+            epu_spike=bool(decision.epu.spike) if decision.epu else False,
+            epu_volatility_multiplier=decision.epu.volatility_multiplier if decision.epu else 1.0,
+            driver_signal=decision.driver_bias.signal,
+            driver_bias=decision.driver_bias.bias,
+            structural_signal=decision.structural.signal if decision.structural else "N/A",
+            structural_tightening_score=decision.structural.tightening_score if decision.structural else float("nan"),
+            structural_inflection_year=decision.structural.surplus_to_shortage_year if decision.structural else 0,
+            demand_pressure=decision.demand.demand_pressure if decision.demand else float("nan"),
+            driver_shift=float(diag.get("driver_shift", 0.0)),
+            structural_shift=float(diag.get("structural_shift", 0.0)),
+            demand_shift=float(diag.get("demand_shift", 0.0)),
+            total_mean_shift=float(diag.get("total_mean_shift", 0.0)),
+            min_spot=float(diag.get("min_spot", 0.0)),
+            max_spot=float(diag.get("max_spot", 1.0)),
+            max_back=float(diag.get("max_back", 1.0)),
+            max_single=float(diag.get("max_single", 1.0)),
+            constraint_reasons=list(diag.get("constraint_reasons", [])),
+            composite_score=float(diag.get("composite_score", 0.0)),
+            strategy=procurement.strategy,
+            allocation=alloc_breakdown,
         )
 
         window = BacktestWindow(
@@ -688,12 +849,12 @@ def run_backtest(
             realized_cost_spot=realized_spot,
             realized_cost_equal_thirds=realized_equal_thirds,
             realized_cost_random_walk=realized_random_walk,
-            realized_cost_moving_average=realized_ma,
+            realized_cost_mean_reversion=realized_mr,
             realized_cost_always_6=realized_always_6,
             savings_vs_spot=savings_spot,
             savings_vs_equal_thirds=savings_equal_thirds,
             savings_vs_random_walk=savings_rw,
-            savings_vs_moving_average=savings_ma,
+            savings_vs_mean_reversion=savings_mr,
             savings_vs_always_6=savings_a6,
             regime_level=decision.regime.level,
             epu_level=decision.epu.level if decision.epu else "N/A",
@@ -704,6 +865,7 @@ def run_backtest(
                 {"label": w.label, "tons": w.tons, "price": w.expected_price}
                 for w in procurement.windows
             ],
+            trace=trace,
         )
 
         result.windows.append(window)
@@ -750,13 +912,13 @@ def run_backtest(
             [p[0] for p in rw_pairs], [p[1] for p in rw_pairs], "random_walk_forecast",
         )
 
-    ma_pairs = [
-        (w.realized_cost_agent, w.realized_cost_moving_average)
-        for w in result.windows if w.realized_cost_moving_average is not None
+    mr_pairs = [
+        (w.realized_cost_agent, w.realized_cost_mean_reversion)
+        for w in result.windows if w.realized_cost_mean_reversion is not None
     ]
-    if ma_pairs:
-        result.stats_vs_moving_average = _paired_stats(
-            [p[0] for p in ma_pairs], [p[1] for p in ma_pairs], "moving_average",
+    if mr_pairs:
+        result.stats_vs_mean_reversion = _paired_stats(
+            [p[0] for p in mr_pairs], [p[1] for p in mr_pairs], "mean_reversion_vs_MA",
         )
 
     a6_pairs = [
@@ -769,6 +931,80 @@ def run_backtest(
         )
 
     return result
+
+
+def format_trace_report(bt: BacktestResult, max_rows: Optional[int] = None) -> str:
+    """Per-window audit trace: for each evaluation window, dump exactly which
+    layers fired, what signals/shifts they produced, whether the trend guard
+    was active, and what the agent decided.
+
+    The intent is to make every decision inspectable: a reader should be able
+    to verify that layers are responding sensibly to the data (e.g. trend
+    guard fires when 6m return is high; structural BUY fires when tightening
+    score is positive) and aren't decorating chaotic behaviour.
+    """
+    rows = bt.windows if max_rows is None else bt.windows[:max_rows]
+    if not rows:
+        return "(no windows)"
+
+    lines = [
+        "=" * 130,
+        "  CARBONEDGE -- PER-WINDOW DECISION TRACE",
+        "=" * 130,
+        "  Each row = one backtest evaluation. Columns show layer signals, mean shifts, constraints, and the resulting strategy.",
+        "",
+        f"  {'Date':<11} {'Spot':>6} {'6mRet':>6} {'TG':>3}  "
+        f"{'Reg':<3} {'EPU':<6}{'S':<2} {'Drv':<7}{'bias':>5}  "
+        f"{'Struc':<6}{'tscore':>7}  "
+        f"{'comp':>5}  "
+        f"{'mShift':>7} {'minS':>5} {'maxS':>5} {'maxB':>5}  "
+        f"{'Strategy':<10} {'Alloc':<28} {'vs_spot EUR':>12}",
+        f"  {'-'*130}",
+    ]
+    for w in rows:
+        t = w.trace
+        if t is None:
+            continue
+        tg = "Y" if t.trend_guard_active else " "
+        spike = "*" if t.epu_spike else " "
+        ret6 = f"{t.trailing_6mo_log_return*100:+5.1f}%" if t.trailing_6mo_log_return is not None else "  n/a "
+        alloc_str = " ".join(f"{k}={v//1000}k" for k, v in t.allocation.items())[:28]
+        sav_spot = w.savings_vs_spot
+        lines.append(
+            f"  {t.eval_date:<11} {t.spot_price:>6.2f} {ret6:>6} {tg:>3}  "
+            f"{t.regime_level:<3} {t.epu_level:<6}{spike:<2} {t.driver_signal:<7}{t.driver_bias:>+5.2f}  "
+            f"{t.structural_signal:<6}{t.structural_tightening_score:>+7.2f}  "
+            f"{t.composite_score:>+5.2f}  "
+            f"{t.total_mean_shift*100:>+6.1f}% {t.min_spot:>5.2f} {t.max_spot:>5.2f} {t.max_back:>5.2f}  "
+            f"{t.strategy:<10} {alloc_str:<28} {sav_spot:>+12,.0f}"
+        )
+
+    # Summary stats: layer-firing rates and trend guard frequency
+    n = len(rows)
+    n_with_trace = sum(1 for w in rows if w.trace is not None)
+    if n_with_trace:
+        n_tg = sum(1 for w in rows if w.trace and w.trace.trend_guard_active)
+        n_buy_str = sum(1 for w in rows if w.trace and w.trace.structural_signal == "BUY")
+        n_def_str = sum(1 for w in rows if w.trace and w.trace.structural_signal == "DEFER")
+        n_hold_str = sum(1 for w in rows if w.trace and w.trace.structural_signal == "HOLD")
+        n_epu_crisis = sum(1 for w in rows if w.trace and w.trace.epu_level == "CRISIS")
+        n_epu_spike = sum(1 for w in rows if w.trace and w.trace.epu_spike)
+        n_regime_y = sum(1 for w in rows if w.trace and w.trace.regime_level == "YELLOW")
+        n_regime_r = sum(1 for w in rows if w.trace and w.trace.regime_level == "RED")
+        lines.extend([
+            "",
+            f"  --- LAYER FIRING SUMMARY (n={n_with_trace} windows) ---",
+            f"    Trend guard active:          {n_tg:>4} ({n_tg/n_with_trace:.0%})",
+            f"    Structural BUY:              {n_buy_str:>4} ({n_buy_str/n_with_trace:.0%})",
+            f"    Structural DEFER:            {n_def_str:>4} ({n_def_str/n_with_trace:.0%})",
+            f"    Structural HOLD:             {n_hold_str:>4} ({n_hold_str/n_with_trace:.0%})",
+            f"    EPU CRISIS level:            {n_epu_crisis:>4} ({n_epu_crisis/n_with_trace:.0%})",
+            f"    EPU spike (z>2):             {n_epu_spike:>4} ({n_epu_spike/n_with_trace:.0%})",
+            f"    Regime YELLOW:               {n_regime_y:>4} ({n_regime_y/n_with_trace:.0%})",
+            f"    Regime RED:                  {n_regime_r:>4} ({n_regime_r/n_with_trace:.0%})",
+        ])
+    lines.append("=" * 130)
+    return "\n".join(lines)
 
 
 def format_backtest_report(bt: BacktestResult, prices: Dict[str, float]) -> str:
@@ -789,7 +1025,7 @@ def format_backtest_report(bt: BacktestResult, prices: Dict[str, float]) -> str:
         f"  Forecast mode: {mode_label}",
         f"  Period: {price_start} to {price_end}",
         f"  Windows evaluated: {bt.total_windows}",
-        f"  Step size: {BACKTEST_STEP_MONTHS} months",
+        f"  Step size: {bt.step_months} months",
         f"  Allowances per window: {bt.windows[0].allowances_needed:,} tons" if bt.windows else "",
         "",
         f"  --- REALIZED PERFORMANCE vs SPOT BASELINE ---",
@@ -843,9 +1079,9 @@ def format_backtest_report(bt: BacktestResult, prices: Dict[str, float]) -> str:
 
     lines.extend([
         "",
-        "  --- STATS: agent vs MOVING AVERAGE (trailing 6-month MA) ---",
+        "  --- STATS: agent vs MEAN-REVERSION (trailing 6-month MA anchor) ---",
     ])
-    lines.extend(_fmt_stats(bt.stats_vs_moving_average))
+    lines.extend(_fmt_stats(bt.stats_vs_mean_reversion))
 
     lines.extend([
         "",
@@ -893,7 +1129,7 @@ def format_backtest_report(bt: BacktestResult, prices: Dict[str, float]) -> str:
         f"  {'-' * 75}",
     ])
     for stats in [bt.stats_vs_spot, bt.stats_vs_equal_thirds, bt.stats_vs_random_walk,
-                  bt.stats_vs_moving_average, bt.stats_vs_always_6]:
+                  bt.stats_vs_mean_reversion, bt.stats_vs_always_6]:
         if stats is None:
             continue
         sig = "YES" if stats.dm_significant else " no"

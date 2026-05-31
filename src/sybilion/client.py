@@ -67,6 +67,7 @@ class SybilionWrapper:
         description: str = "Monthly carbon market time series",
         max_wait: int = 600,
         poll_interval: int = 10,
+        backtest: bool = True,
     ) -> ForecastArtifacts:
         """Submit a forecast job, poll until settled, return artifacts."""
         if keywords is None:
@@ -89,7 +90,7 @@ class SybilionWrapper:
             "frequency": "monthly",
             "soft_horizon": horizon,
             "recency_factor": 0.6,
-            "backtest": True,
+            "backtest": backtest,
             "timeseries_metadata": {
                 "title": title,
                 "description": description,

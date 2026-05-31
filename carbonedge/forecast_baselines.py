@@ -126,3 +126,74 @@ def baseline_cost_equal_thirds(
         tons = per_window_tons + (leftover if i == 0 else 0)
         total += tons * float(realized_prices_by_horizon[h])
     return total
+
+
+def baseline_cost_always_horizon_6(
+    realized_prices_by_horizon: Dict[int, float],
+    total_tons: int,
+) -> Optional[float]:
+    """Always buys 100% at h=6 realized price — extreme back-load baseline."""
+    if 6 not in realized_prices_by_horizon:
+        return None
+    return float(total_tons) * float(realized_prices_by_horizon[6])
+
+
+def baseline_cost_random_walk(
+    historical_prices: List[float],
+    spot: float,
+    realized_by_h: Dict[int, float],
+    total_tons: int,
+    horizons: List[int] = (1, 3, 6),
+) -> Optional[float]:
+    """Random-walk-with-drift forecast → buy all at cheapest forecast horizon.
+
+    Uses ONLY past prices to forecast. The forecast picks the horizon with the
+    lowest predicted price, then pays the REALIZED (actual future) price at that
+    horizon. This is a naive forecasting competitor to CarbonEdge: a simple
+    stat model makes the procurement bet, but still faces market reality.
+
+    Returns None if the chosen horizon's realized price is unavailable.
+    """
+    forecast = make_random_walk_forecast(historical_prices, spot, list(horizons))
+    if not forecast.forecast_points:
+        return None
+    cheapest_h = min(
+        forecast.forecast_points,
+        key=lambda h: forecast.forecast_points[h]["value"],
+    )
+    if cheapest_h not in realized_by_h:
+        return None
+    return float(total_tons) * float(realized_by_h[cheapest_h])
+
+
+def baseline_cost_mean_reversion(
+    historical_prices: List[float],
+    spot: float,
+    realized_by_h: Dict[int, float],
+    total_tons: int,
+    horizons: List[int] = (1, 3, 6),
+    trailing_months: int = 6,
+) -> Optional[float]:
+    """Mean-reversion trade vs the trailing N-month moving average.
+
+    Strategy:
+      - if trailing MA >= spot, prices are below their recent average -> expect
+        rebound up -> buy at the SHORTEST horizon (lock in before mean reverts up)
+      - if trailing MA < spot, prices are above their recent average -> expect
+        pullback -> buy at the LONGEST horizon (wait for revert down)
+
+    This is *not* a forecast baseline (a flat-MA forecast is horizon-indifferent
+    by construction). It is a position-relative-to-MA strategy that uses the MA
+    as a fair-value anchor. Returns None if the chosen horizon's realized price
+    is unavailable.
+    """
+    if len(historical_prices) < trailing_months:
+        trailing = historical_prices
+    else:
+        trailing = historical_prices[-trailing_months:]
+    ma = float(np.mean(trailing))
+    available = [h for h in horizons if h in realized_by_h]
+    if not available:
+        return None
+    cheapest_h = available[0] if ma >= spot else available[-1]
+    return float(total_tons) * float(realized_by_h[cheapest_h])
