@@ -15,7 +15,24 @@ import type {
  *
  * Override the base URL with VITE_API_BASE.
  */
-const API = (import.meta.env.VITE_API_BASE as string | undefined) ?? 'http://localhost:8000'
+const getApiBase = (): string => {
+  if (import.meta.env.VITE_API_BASE) {
+    return import.meta.env.VITE_API_BASE as string
+  }
+  if (typeof window !== 'undefined') {
+    const { hostname, protocol } = window.location
+    // If accessed via network IP or domain other than localhost/127.0.0.1
+    if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
+      // Support VS Code dev tunnels / GitHub Codespaces and Gitpod port maps:
+      if (hostname.includes('github.dev') || hostname.includes('gitpod.io')) {
+        return `${protocol}//${hostname.replace('5173', '8000')}`
+      }
+      return `${protocol}//${hostname}:8000`
+    }
+  }
+  return 'http://localhost:8000'
+}
+const API = getApiBase()
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 /** Where the rendered data came from, surfaced in the footer for honesty. */
