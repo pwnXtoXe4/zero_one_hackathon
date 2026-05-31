@@ -128,13 +128,13 @@ export function CarbonEdgeTimeline({
 
             {/* Cumulative emissions band + median */}
             <Area yAxisId="em" dataKey="cumBase" stackId="em" stroke="none" fill="transparent" isAnimationActive={false} />
-            <Area yAxisId="em" dataKey="cumSpan" stackId="em" stroke="none" fill="url(#emBand)" animationDuration={700} />
-            <Line yAxisId="em" dataKey="cumP50" stroke="#2563EB" strokeWidth={2.4} dot={false} animationDuration={700} />
+            <Area yAxisId="em" dataKey="cumSpan" stackId="em" stroke="none" fill="url(#emBand)" isAnimationActive={false} />
+            <Line yAxisId="em" dataKey="cumP50" stroke="#2563EB" strokeWidth={2.4} dot={false} isAnimationActive={false} />
 
             {/* EUA price band + median (right axis) */}
             <Area yAxisId="price" dataKey="priceBase" stackId="pr" stroke="none" fill="transparent" isAnimationActive={false} connectNulls />
-            <Area yAxisId="price" dataKey="priceSpan" stackId="pr" stroke="none" fill="url(#tlPriceBand)" animationDuration={700} connectNulls />
-            <Line yAxisId="price" dataKey="priceP50" stroke={priceAccent} strokeWidth={2} strokeDasharray="5 4" dot={false} connectNulls animationDuration={700} />
+            <Area yAxisId="price" dataKey="priceSpan" stackId="pr" stroke="none" fill="url(#tlPriceBand)" isAnimationActive={false} connectNulls />
+            <Line yAxisId="price" dataKey="priceP50" stroke={priceAccent} strokeWidth={2} strokeDasharray="5 4" dot={false} connectNulls isAnimationActive={false} />
 
             {/* Procurement action marker — placed before the overshoot */}
             {plan.side === 'SHORT' && securedNow > 0 && (

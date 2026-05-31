@@ -66,7 +66,7 @@ export interface EmissionsOutlook {
   company: string
   unit: string
   year: number
-  source: 'sybilion' | 'synthetic'
+  source: 'sybilion' | 'climate_trace_projection' | 'synthetic'
   freeAllocation: number
   annualEmissionsP50: number
   annualDeficitP50: number

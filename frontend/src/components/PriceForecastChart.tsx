@@ -107,11 +107,11 @@ export function PriceForecastChart({
             />
             <Tooltip content={<TipBox />} cursor={{ stroke: '#BFD0C8', strokeDasharray: '3 3' }} />
             <Area dataKey="outerBase" stackId="o" stroke="none" fill="transparent" isAnimationActive={false} />
-            <Area dataKey="outerSpan" stackId="o" stroke="none" fill="url(#bandOuter)" animationDuration={700} />
+            <Area dataKey="outerSpan" stackId="o" stroke="none" fill="url(#bandOuter)" isAnimationActive={false} />
             <Area dataKey="innerBase" stackId="i" stroke="none" fill="transparent" isAnimationActive={false} />
-            <Area dataKey="innerSpan" stackId="i" stroke="none" fill="url(#bandInner)" animationDuration={700} />
+            <Area dataKey="innerSpan" stackId="i" stroke="none" fill="url(#bandInner)" isAnimationActive={false} />
             <Line dataKey="price" stroke="#7D8983" strokeWidth={2} dot={false} isAnimationActive={false} />
-            <Line dataKey="p50" stroke={accent} strokeWidth={2.4} strokeDasharray="5 4" dot={false} animationDuration={700} />
+            <Line dataKey="p50" stroke={accent} strokeWidth={2.4} strokeDasharray="5 4" dot={false} isAnimationActive={false} />
             <ReferenceLine x={todayLabel} stroke="#7D8983" strokeDasharray="4 4" label={{ value: 'today', fill: '#7D8983', fontSize: 10, position: 'insideTopLeft' }} />
           </ComposedChart>
         </ResponsiveContainer>
