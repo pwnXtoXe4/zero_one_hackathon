@@ -27,7 +27,7 @@ export function PositionCard({ firm, position }: { firm: Firm; position: Positio
   const overshoot = outlook?.overshoot ? `${outlook.overshoot.label} ${outlook.year}` : null
 
   return (
-    <Card className="flex flex-col gap-3 bg-[#FFFDF7]" style={{ '--card-accent': accent } as React.CSSProperties}>
+    <Card className="flex flex-col gap-2 bg-[#FFFDF7] p-4" style={{ '--card-accent': accent } as React.CSSProperties}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <SectorDot sector={firm.sector} />
@@ -39,7 +39,7 @@ export function PositionCard({ firm, position }: { firm: Firm; position: Positio
 
       <div>
         <div className="flex items-end gap-2">
-          <span className="font-display text-[46px] font-extrabold leading-none" style={{ color: accent }}>
+          <span className="font-display text-[32px] font-extrabold leading-none" style={{ color: accent }}>
             {tons(defMid)}
           </span>
           <span className="mb-1 rounded-md px-2 py-0.5 text-xs font-bold" style={{ color: accent, background: accent + '1A' }}>

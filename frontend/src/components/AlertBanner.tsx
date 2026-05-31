@@ -15,8 +15,7 @@ export function AlertBanner() {
               <div className="flex-1">
                 <span className="font-display text-sm font-semibold text-amber">MID-RUN SHOCK · MARKET STABILITY RESERVE</span>
                 <span className="ml-2 text-sm text-ink/90">
-                  MSR withdraws 20% of auction supply from next quarter. The primary market tightens — the agent
-                  re-routes off auctions onto spot &amp; RFQ and pulls the held reserve forward.
+                  MSR withdraws 20% of auction supply — agent re-routes to spot &amp; RFQ.
                 </span>
               </div>
             </div>

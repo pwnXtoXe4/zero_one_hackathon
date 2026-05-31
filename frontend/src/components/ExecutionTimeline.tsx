@@ -70,7 +70,6 @@ export function ExecutionTimeline({ plan }: { plan: ExecutionPlan }) {
                   {r.maxBid != null && <span>· max bid €{r.maxBid.toFixed(1)}</span>}
                   <span>· {STATUS_LABEL[r.status]}</span>
                 </div>
-                <p className="mt-1 text-[11px] leading-snug text-muted">{r.reason}</p>
               </div>
             </div>
           )

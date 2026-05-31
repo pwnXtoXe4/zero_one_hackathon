@@ -12,9 +12,7 @@ export function ChannelRouter({ channels, scenario }: { channels: ChannelOption[
         <span className="label">Channel router · where to buy</span>
         <span className="chip">{routed} routed</span>
       </div>
-      <p className="mb-3 text-[11px] leading-snug text-muted">
-        Ranked by risk-adjusted cost <span className="text-ink/60">and</span> ability to fill — the cheapest per-tonne channel isn&rsquo;t always&nbsp;#1.
-      </p>
+
 
       <div className="space-y-2">
         {channels.map((c) => {
@@ -57,7 +55,7 @@ export function ChannelRouter({ channels, scenario }: { channels: ChannelOption[
                 </span>
               </div>
 
-              <p className="mt-1.5 text-[11px] leading-snug text-muted">{c.reason}</p>
+
             </div>
           )
         })}

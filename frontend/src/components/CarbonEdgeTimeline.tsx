@@ -124,11 +124,8 @@ export function CarbonEdgeTimeline({
 
       {/* Action strip — the routed plan, dated */}
       <div className="mt-4 border-t border-border pt-3">
-        <div className="mb-2 flex items-center justify-between">
-          <span className="label">Routed procurement — execute before the overshoot</span>
-          <span className="text-[11px] text-muted">
-            source: {sourceLabel} · price: Sybilion EUA forecast{outlook.source === 'synthetic' ? ' · emissions illustrative' : ''}
-          </span>
+        <div className="mb-2">
+          <span className="label">Procurement plan</span>
         </div>
         <div className="flex flex-wrap gap-2">
           {plan.tranches.map((t: Tranche) => (

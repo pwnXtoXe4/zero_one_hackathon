@@ -1,4 +1,4 @@
-import { ArrowUpRight, Target } from 'lucide-react'
+import { ArrowUpRight } from 'lucide-react'
 import { Card, ConfidenceBadge, AnimatedNumber, Donut, CHANNEL_COLOR, CHANNEL_LABEL } from './primitives'
 import type { ExecutionPlan, Scenario } from '@/data/types'
 import { eurM, tons } from '@/lib/utils'
@@ -26,7 +26,7 @@ export function ExecutionPlanCard({ plan, scenario }: { plan: ExecutionPlan; sce
 
   return (
     <Card
-      className="relative overflow-hidden bg-[#F8FBFF]"
+      className="relative overflow-hidden bg-[#F8FBFF] p-4"
       style={
         {
           '--card-accent': color,
@@ -47,13 +47,13 @@ export function ExecutionPlanCard({ plan, scenario }: { plan: ExecutionPlan; sce
           {plan.action}
           {shock && <ArrowUpRight size={18} />}
         </span>
-        <p className="pt-0.5 font-display text-[16px] font-semibold leading-snug text-ink">{plan.headline}</p>
+        <p className="pt-0.5 text-[13px] leading-snug text-ink/80 line-clamp-2">{plan.headline}</p>
       </div>
 
       {/* channel mix donut + legend */}
       <div className="mt-4 flex items-center gap-5">
         <div className="relative grid shrink-0 place-items-center">
-          <Donut segments={segs} />
+          <Donut segments={segs} size={80} stroke={11} />
           <div className="absolute text-center">
             <div className="font-display text-lg font-bold leading-none text-ink">
               <AnimatedNumber value={plan.deficitVolume} format={(n) => tons(n)} />
@@ -79,21 +79,7 @@ export function ExecutionPlanCard({ plan, scenario }: { plan: ExecutionPlan; sce
         <Stat label="Saved vs year-end" value={plan.savingsVsYearEnd} color={color} />
       </div>
 
-      {/* monitoring triggers */}
-      <div className="mt-4">
-        <span className="label flex items-center gap-1.5"><Target size={12} /> Monitoring triggers</span>
-        <ul className="mt-2 space-y-1.5">
-          {plan.triggers.map((t) => (
-            <li
-              key={t}
-              className="flex items-start gap-2 text-[12px] leading-snug text-ink/75"
-            >
-              <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full" style={{ background: color }} />
-              {t}
-            </li>
-          ))}
-        </ul>
-      </div>
+
     </Card>
   )
 }

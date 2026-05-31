@@ -21,10 +21,6 @@ export function PolicyTimeline({ events }: { events?: PolicyEvent[] }) {
   return (
     <Card className="bg-[#FBF8F3]" style={{ '--card-accent': '#B07B2E' } as React.CSSProperties}>
       <span className="label">EU-ETS policy timeline</span>
-      <p className="mt-1 text-[12px] leading-snug text-muted">
-        CarbonEdge’s own model of public regulatory facts — kept separate from the statistical
-        Sybilion signals, whose universe carries no ETS-specific policy series.
-      </p>
       <div className="mt-3.5 space-y-3.5">
         {events.map((e) => {
           const up = e.direction >= 0
@@ -43,10 +39,9 @@ export function PolicyTimeline({ events }: { events?: PolicyEvent[] }) {
                   style={{ width: `${(e.importance / max) * 100}%`, background: color }}
                 />
               </div>
-              <p className="text-[11px] leading-snug text-muted">
+              <p className="text-[11px] leading-snug text-muted line-clamp-1">
                 <span className="font-medium text-ink/70">{fmtWhen(e)}</span> · {e.detail}
               </p>
-              <p className="mt-0.5 text-[10px] uppercase tracking-wide text-muted/70">{e.source}</p>
             </div>
           )
         })}

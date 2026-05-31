@@ -18,7 +18,7 @@ export function MarketSnapshot({
       <div className="flex items-start justify-between">
         <div>
           <span className="label">EUA spot price</span>
-          <div className="font-display text-[40px] font-extrabold leading-none text-ink">€{CURRENT_PRICE.toFixed(2)}</div>
+          <div className="font-display text-[32px] font-extrabold leading-none text-ink">€{CURRENT_PRICE.toFixed(2)}</div>
           <div className="mt-1 text-xs font-medium text-signal">▲ 1.4% today</div>
         </div>
         <Sparkline data={spark} color="#009B72" />

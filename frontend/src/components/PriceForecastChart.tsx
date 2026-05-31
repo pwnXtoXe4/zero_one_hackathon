@@ -1,4 +1,4 @@
-import { CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Area, CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Card } from './primitives'
 import type { ForecastPoint, HistoryPoint, Scenario } from '@/data/types'
 
@@ -84,6 +84,16 @@ export function PriceForecastChart({
       <div className="h-[300px] w-full">
         <ResponsiveContainer>
           <ComposedChart data={data} margin={{ top: 8, right: 18, bottom: 0, left: -10 }}>
+            <defs>
+              <linearGradient id="outerBand" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={accent} stopOpacity={0.18} />
+                <stop offset="100%" stopColor={accent} stopOpacity={0.04} />
+              </linearGradient>
+              <linearGradient id="innerBand" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={accent} stopOpacity={0.28} />
+                <stop offset="100%" stopColor={accent} stopOpacity={0.08} />
+              </linearGradient>
+            </defs>
             <CartesianGrid stroke="#DDE8E2" vertical={false} />
             <XAxis
               dataKey="label" tick={{ fill: '#7D8983', fontSize: 11 }} tickLine={false} axisLine={false}
@@ -94,6 +104,12 @@ export function PriceForecastChart({
               domain={['dataMin-6', 'dataMax+10']} tickFormatter={(v) => '€' + v}
             />
             <Tooltip content={<TipBox />} cursor={{ stroke: '#BFD0C8', strokeDasharray: '3 3' }} />
+            {/* Outer confidence band: p05–p95 (90%) */}
+            <Area dataKey="outerBase" stackId="outer" stroke="none" fill="transparent" isAnimationActive={false} />
+            <Area dataKey="outerSpan" stackId="outer" stroke="none" fill="url(#outerBand)" isAnimationActive={false} />
+            {/* Inner confidence band: p25–p75 (50%) */}
+            <Area dataKey="innerBase" stackId="inner" stroke="none" fill="transparent" isAnimationActive={false} />
+            <Area dataKey="innerSpan" stackId="inner" stroke="none" fill="url(#innerBand)" isAnimationActive={false} />
             <Line dataKey="price" stroke="#7D8983" strokeWidth={2} dot={false} isAnimationActive={false} />
             <Line dataKey="p50" stroke={accent} strokeWidth={2.4} strokeDasharray="5 4" dot={false} isAnimationActive={false} />
             <ReferenceLine x={todayLabel} stroke="#7D8983" strokeDasharray="4 4" label={{ value: 'today', fill: '#7D8983', fontSize: 10, position: 'insideTopLeft' }} />

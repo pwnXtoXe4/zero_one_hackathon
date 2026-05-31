@@ -14,7 +14,7 @@ function Stat({ label, value, color }: { label: string; value: number; color: st
   return (
     <div>
       <div className="label">{label}</div>
-      <div className="mt-0.5 font-display text-2xl font-bold" style={{ color }}>
+      <div className="mt-0.5 font-display text-xl font-bold" style={{ color }}>
         <AnimatedNumber value={value} format={eurM} />
       </div>
     </div>
@@ -26,7 +26,7 @@ export function RecommendationCard({ recommendation: r, scenario }: { recommenda
   const color = actionColor(r.action, shock)
   return (
     <Card
-      className="relative overflow-hidden bg-[#F8FBFF]"
+      className="relative overflow-hidden bg-[#F8FBFF] p-4"
       style={
         {
           '--card-accent': color,
@@ -38,8 +38,8 @@ export function RecommendationCard({ recommendation: r, scenario }: { recommenda
 
       <div className="mt-3 flex items-start gap-4">
         <div className="relative grid shrink-0 place-items-center">
-          <RingGauge pct={r.lockNowPct} color={color} />
-          <span className="absolute font-display text-base font-bold" style={{ color }}>
+          <RingGauge pct={r.lockNowPct} color={color} size={60} />
+          <span className="absolute font-display text-sm font-bold" style={{ color }}>
             {r.lockNowPct}%
           </span>
         </div>
@@ -50,14 +50,14 @@ export function RecommendationCard({ recommendation: r, scenario }: { recommenda
               {r.action}
               {shock && <ArrowUpRight size={18} />}
             </span>
-            <p className="mt-2 font-display text-[16px] font-semibold leading-snug text-ink">{r.headline}</p>
+            <p className="mt-1.5 text-[13px] leading-snug text-ink/80">{r.headline}</p>
           </div>
         </div>
       </div>
 
 
 
-      <div className="mt-5 grid grid-cols-2 gap-3 border-t border-border pt-4">
+      <div className="mt-3 grid grid-cols-2 gap-3 border-t border-border pt-3">
         <Stat label="Exposure at risk" value={r.costAtRisk} color="#171C19" />
         <Stat label="Saved vs naive" value={r.savingsVsNaive} color={color} />
       </div>

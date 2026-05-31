@@ -133,19 +133,14 @@ function Dashboard() {
           <footer className="mt-8 flex items-center justify-between border-t border-border/60 pt-4 text-[11px] text-muted">
             {src.source === 'live' ? (
               <span>
-                <span className="font-semibold text-signal">● Live backend</span> · real EUA prices ·{' '}
-                {src.forecastMode === 'fallback'
-                  ? 'price forecast: deterministic fallback (Sybilion cache empty)'
-                  : `Sybilion forecast (${src.forecastMode ?? 'cache'})`}{' '}
-                · engine-routed plan · real EEX 2026 auction calendar · counterparties simulated
+                <span className="font-semibold text-signal">● Live</span> · Sybilion forecast · real EUA prices
               </span>
             ) : (
               <span>
-                <span className="font-semibold text-amber">● Demo data (mock)</span> · backend offline ({src.reason}) ·
-                start the API to see live Sybilion forecasts &amp; engine routing
+                <span className="font-semibold text-amber">● Demo</span> · backend offline · mock data
               </span>
             )}
-            <span>Forecasts powered by the Sybilion probabilistic API</span>
+            <span>Powered by Sybilion</span>
           </footer>
         </main>
       </div>
