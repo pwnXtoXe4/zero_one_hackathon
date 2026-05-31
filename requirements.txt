@@ -1,15 +1,14 @@
-<<<<<<< HEAD
 numpy>=1.24
 pandas>=2.0
 openpyxl>=3.1
 # Optional: enables the FOCuS structural-break detector. Without it, the
 # regime layer silently falls back to CUSUM-only signals.
 changepoint_online>=0.2
-=======
+
 # Sybilion API client
 sybilion
 
-# Core dependencies (all stdlib except these)
+# Core dependencies
 scipy>=1.10.0
 
 # Optional: for meta-model stretch goal
@@ -22,4 +21,3 @@ pytest>=8.0.0
 # Backend API layer
 fastapi
 uvicorn
->>>>>>> 435355198b8413d267741b6457f7e2cdecaf9ac7

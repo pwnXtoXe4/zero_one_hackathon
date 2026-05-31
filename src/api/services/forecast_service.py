@@ -27,7 +27,7 @@ def submit_to_sybilion(body: dict[str, Any]) -> dict:
 
     Returns a mock response when the SDK import fails or the token is missing.
     """
-    token = os.environ.get("SYBILION_API_TOKEN")
+    token = os.environ.get("SYBILION_API_TOKEN") or os.environ.get("SYBILION_API_KEY")
 
     try:
         import pandas as pd

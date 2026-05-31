@@ -5,11 +5,8 @@
 .claude/
 __pycache__/
 *.pyc
-<<<<<<< HEAD
 data/
 sybilion/
 logs*.txt
 backtest_*.txt
 backtest_logs.txt
-=======
->>>>>>> 435355198b8413d267741b6457f7e2cdecaf9ac7

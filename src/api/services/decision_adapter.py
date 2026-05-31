@@ -15,6 +15,7 @@ from fastapi import HTTPException
 from src.api.services import PREPARED_DIR, company_service, forecast_service
 
 SCENARIO_EVENTS = [
+    "msr_auction_cut",
     "ets_cap_accelerated",
     "ets_cap_loosened",
     "gas_price_spike",
