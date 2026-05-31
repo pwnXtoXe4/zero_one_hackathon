@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { ChevronDown, Zap, RotateCcw, Activity } from 'lucide-react'
 import { FIRMS, positionOf, CURRENT_PRICE } from '@/data/mock'
+import { api } from '@/data/api'
 import { useScenario } from '@/state/scenario'
 import { SectorDot } from './primitives'
 import { cn, tons } from '@/lib/utils'
+import type { HistoryPoint } from '@/data/types'
 
 function FirmSelector() {
   const { firmId, setFirmId } = useScenario()
@@ -91,6 +93,16 @@ function ShockButton() {
 }
 
 export function TopBar() {
+  const [history, setHistory] = useState<HistoryPoint[]>([])
+  useEffect(() => {
+    api.getHistory().then(setHistory)
+  }, [])
+  const last = history[history.length - 1]
+  const prev = history[history.length - 2]
+  const price = last?.price ?? CURRENT_PRICE
+  const change = last && prev && prev.price ? ((last.price - prev.price) / prev.price) * 100 : null
+  const up = (change ?? 0) >= 0
+
   return (
     <header className="sticky top-0 z-10 border-b border-border/70 bg-bg/70 backdrop-blur-xl">
       <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-4 px-6 py-3.5">
@@ -108,9 +120,13 @@ export function TopBar() {
 
         <div className="hidden items-center gap-2 rounded-full border border-border bg-surface2/50 px-3.5 py-1.5 md:flex">
           <Activity size={14} className="text-signal" />
-          <span className="text-xs text-muted">EU ETS · EUA Dec-26</span>
-          <span className="font-mono text-sm font-semibold text-ink">€{CURRENT_PRICE.toFixed(2)}</span>
-          <span className="text-xs font-medium text-signal">▲ 1.4%</span>
+          <span className="text-xs text-muted">EU ETS · EUA spot</span>
+          <span className="font-mono text-sm font-semibold text-ink">€{price.toFixed(2)}</span>
+          {change != null && (
+            <span className={cn('text-xs font-medium', up ? 'text-signal' : 'text-danger')}>
+              {up ? '▲' : '▼'} {Math.abs(change).toFixed(1)}%
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-3">

@@ -27,6 +27,9 @@ export function SmartMatchFeed({ matches, scenario }: { matches: Match[]; scenar
         </span>
         <span className="chip">{matches.length} live</span>
       </div>
+      <p className="mb-2.5 -mt-1 text-[11px] leading-snug text-muted">
+        OTC matches are illustrative — real inter-firm trade data is not publicly available.
+      </p>
       <div className="space-y-2.5">
         <AnimatePresence mode="popLayout">
           {matches.map((m, i) => (

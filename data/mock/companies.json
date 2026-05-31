@@ -25,5 +25,14 @@
     "forecast_emissions": 1200000,
     "free_allocation": 900000,
     "current_allowances": 150000
+  },
+  {
+    "id": "heidelberg",
+    "name": "Heidelberg Materials",
+    "sector": "Cement",
+    "country": "DE",
+    "forecast_emissions": 31251000,
+    "free_allocation": 24000000,
+    "current_allowances": 1500000
   }
 ]

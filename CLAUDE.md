@@ -9,85 +9,89 @@ CarbonEdge is a 36h hackathon project (Zero One Hackathon). A CO2/EUA procuremen
 | Role | Owner | Status |
 |------|-------|--------|
 | Backend Infrastructure | Florian Zainzinger | ✅ DONE |
-| Decision Engine Logic | Another teammate | ❌ `src/engine/` not built yet |
-| Frontend | Another teammate | ❌ Waiting for APIs |
+| Decision Engine (carbonedge/) | Florian Zainzinger | ✅ DONE |
+| Frontend | Another teammate | ✅ Active development |
+| Data (company emissions) | Florian Zainzinger | ✅ 30,864 companies loaded |
 
-## Current Repo State (updated 30.05.2026)
+## Current Repo State (updated 31.05.2026)
 
-### ✅ Done
+### ✅ Backend (src/api/)
 
 | What | Where |
 |------|-------|
-| FastAPI backend (CORS open, 13 endpoints) | `src/api/` |
-| Health, companies, position routes | `src/api/routes/health.py`, `companies.py` |
+| FastAPI backend (CORS open, 13 endpoints) | `src/api/main.py` |
+| Health, companies, position routes | `src/api/routes/` |
 | Market data routes (prices, futures, offers, auctions) | `src/api/routes/market.py` |
 | Forecast routes (template + Sybilion submission) | `src/api/routes/forecasts.py` |
-| Decision adapter stubs (engine integration points) | `src/api/routes/decisions.py` |
+| Decision adapter (tries importing engine, falls back to mock) | `src/api/services/decision_adapter.py` |
 | Service layer (file loading, CSV parsing, position calc) | `src/api/services/` |
 | Sybilion API wrapper (caching + mock fallback) | `src/sybilion/client.py` |
-| Pydantic schemas (ForecastRequest, ExternalDriver, etc.) | `src/sybilion/schema.py` |
-| Keyword sets (4 layers: Regulatory, Market, Technology, Macro) | `src/sybilion/keywords.py` |
-| 3 synthetic companies | `data/mock/companies.json` |
-| 4 synthetic seller offers | `data/mock/sell_offers.json` |
-| 5 synthetic auction entries | `data/mock/auction_calendar.json` |
-| Real EUA carbon prices (Jan 2021 – May 2026, 67 points) | `data/raw/eua_prices_monthly.json` |
-| Daily carbon futures 2015-2026 (2849 rows, UTF-8 BOM fixed) | `data/raw/carbon_emission_futures_data.csv` |
-| Ready-to-submit Sybilion forecast request | `data/prepared/eua_forecast_request.json` |
-| Design document (656 lines) | `IDEA_CARBON_REDUCTION.md` |
-| Frontend API contract | `FRONTEND_API_CONTRACT.md` |
-| Submission templates (unfilled) | `submission/` |
-| README with install + endpoint table | `README.md` |
 
-### ❌ Not yet built
+### ✅ Decision Engine (carbonedge/)
 
-- Decision engine (`src/engine/agent.py` — teammate's scope)
-- Frontend
-- Submission report (template only)
+| Layer | File | What it does |
+|-------|------|-------------|
+| Main entry point | `carbonedge/main.py` | CLI: loads data, builds forecast request, runs pipeline |
+| Decision agent orchestrator | `carbonedge/decision_agent.py` | Wires all 5 layers → EnhancedDecision with procurement plan |
+| Config + Company Profile | `carbonedge/config.py` | COMPANY_PROFILE, EMISSION_SOURCES, MAC_CONFIG |
+| Sybilion client wrapper | `carbonedge/sybilion_client.py` | Builds requests, parses responses (real Sybilion format) |
+| Mock forecast generator | `carbonedge/sybilion_client.py` | generate_mock_forecast() for testing |
+| Output formatter | `carbonedge/output.py` | format_full_decision(), format_adaptive_delta() |
+| Regime detector (FOCuS + CUSUM) | `carbonedge/regime_detector.py` | Online changepoint detection for structural breaks |
+| MAC Curve builder | `carbonedge/mac_curve.py` | Marginal Abatement Cost curve |
+| Budget allocator | `carbonedge/budget_allocator.py` | Distributes reduction budget across options |
+| Adaptive scenario shifts | `carbonedge/adaptive.py` | ETS reform, CBAM, energy crash recalculations |
+| Fundamental model | `carbonedge/fundamental/` | Cap schedule, MSR model, balance model, driver monitor |
+| **Layer 1: Regime Enhancer** | `carbonedge/enhancement/regime_enhancer.py` | GREEN/YELLOW/RED confidence multipliers |
+| **Layer 2: EPU Modulator** | `carbonedge/enhancement/epu_modulator.py` | Economic Policy Uncertainty → volatility multiplier |
+| **Layer 3: Driver Filter** | `carbonedge/enhancement/driver_filter.py` | Coal/MSCI Energy/Gas ratio → front/back-load bias |
+| **Layer 4: Structural Context** | `carbonedge/enhancement/structural_context.py` | Cap-emissions-MSR balance → narrative context |
+| **Layer 5: Demand Signal** (NEW) | `carbonedge/enhancement/demand_signal.py` | 30,864 company emissions → demand_pressure (-1..+1) |
+| **Company Risk Layer** (NEW) | `carbonedge/enhancement/company_risk.py` | Per-sector/size risk profiles → CVaR lambda override |
+| Procurement optimizer (CVaR) | `carbonedge/procurement/optimizer.py` | Monte Carlo + scipy SLSQP → buy plan |
+| Ladder rules (fallback) | `carbonedge/procurement/ladder_rules.py` | Heuristic ladder when optimizer fails |
+| Tests | `carbonedge/tests/` | test_contracts.py, test_crosshair.py |
 
-## All API Endpoints
-
-| Method | Path | Status |
-|--------|------|--------|
-| GET | `/` | Service info |
-| GET | `/health` | `{"status":"ok"}` |
-| GET | `/companies` | 3 mock companies |
-| GET | `/companies/{id}` | Single company + 404 |
-| GET | `/companies/{id}/position` | LONG/SHORT calculation |
-| GET | `/market/eua-prices` | 65 months, chart-ready array |
-| GET | `/market/futures?limit=500` | 2849 rows, CSV → JSON |
-| GET | `/market/sell-offers` | 4 mock sellers |
-| GET | `/market/auctions` | 5 mock auctions |
-| GET | `/market/auctions/next` | Nearest future auction |
-| GET | `/forecasts/request-template` | Sybilion request JSON |
-| POST | `/forecasts/sybilion` | Submit to Sybilion or mock fallback |
-| POST | `/decisions/run` | Engine stub → mock_engine_not_connected |
-| POST | `/decisions/scenario` | Scenario stub → mock_engine_not_connected |
-
-All endpoints verified working (`python -m compileall src/api` clean, live server tested).
-
-## Decision Engine Integration
-
-The backend is ready for the decision teammate. They must create:
+### Pipeline Architecture (5 Layers)
 
 ```
-src/engine/
-├── __init__.py
-├── agent.py          # CarbonEdgeAgent class with run() method
-└── scenario_manager.py  # ScenarioManager with run_scenario() method
+Sybilion Forecast
+       │
+       ▼
+Layer 1: Regime     → confidence_multiplier (GREEN/YELLOW/RED)
+Layer 2: EPU        → volatility_multiplier (NORMAL/ELEVATED/CRISIS)
+Layer 3: Driver     → front/back-load bias (-0.3..+0.3)
+Layer 4: Structural → narrative context (cap-emissions-MSR balance)
+Layer 5: Demand     → demand_pressure (-1..+1) from 30K companies
+       │
+Company Risk Layer  → risk_lambda override (0.15-0.50 per sector/size)
+       │
+       ▼
+CVaR Optimizer → Procurement Plan (tons × window × EUR)
 ```
 
-The adapter in `src/api/services/decision_adapter.py` tries:
-```python
-from src.engine.agent import CarbonEdgeAgent
-```
+## Data Audit (ehrlich: was ist echt, was ist Mock)
 
-If import fails → returns `"status": "mock_engine_not_connected"` with available market data URLs.
-If import succeeds → calls the engine and returns real decision output.
+| Element | Status | Quelle |
+|---------|:---:|--------|
+| EUA-Preishistorie (67 Monate) | 🟢 echt | `data/raw/eua_prices_monthly.json` |
+| Carbon Futures (2849 rows, 2015-2026) | 🟢 echt | `data/raw/carbon_emission_futures_data.csv` |
+| Carbon Futures monthly mean/median | 🟢 echt | `data/prepared/carbon_futures_monthly_*.json` |
+| 30,864 Company Emissions (2021-2026) | 🟢 echt | `data/prepared/all_companies_co2_timeseries.json` (Climate TRACE v5.5, 62MB) |
+| 6 Individual Company CSVs | 🟢 echt | `data/raw/*.csv` (Salzgitter, Lengerich, Deuna, Nordzucker, Uxheim, Adolf) |
+| Heidelberg Materials Emissions | 🟡 synth. Monatsauflösung | `data/raw/synthetic/heidelberg_materials_monthly_emissions.csv` (echte Firma, monatliche Disaggregation synthetisch) |
+| Sybilion Forecast Request Template | 🟢 echt | `data/prepared/eua_forecast_request.json` |
+| Backend Companies (greenchem, alpine_paper, voest_steel) | 🔴 synthetisch | `data/mock/companies.json` (statische Zahlen, keine echten Emissionen) |
+| Auction Calendar | 🔴 Mock | `data/mock/auction_calendar.json` (kein echter EEX-Kalender) |
+| Sell Offers (OTC) | 🔴 Mock | `data/mock/sell_offers.json` |
+| Inter-Firmen-Trade-Daten | ⚫ existiert nicht | Nicht öffentlich verfügbar (Union Registry zeigt das nicht) |
 
 ## Tech Stack
 
 - **Language:** Python 3.11+
 - **Backend:** FastAPI + Uvicorn
+- **Decision Engine:** numpy, scipy (for CVaR optimizer)
+- **Optional:** pandas, openpyxl (for EPU data), changepoint_online (for FOCuS)
 - **Data:** JSON files + CSV (NO database)
 - **Forecasting:** Sybilion API (api.sybilion.dev)
 - **No Docker, no ORM, no auth**
@@ -97,19 +101,23 @@ If import succeeds → calls the engine and returns real decision output.
 - **Correct API endpoint:** `https://api.sybilion.dev`
 - **Auth header:** `Authorization: Bearer <token>`
 - **Token env var:** `SYBILION_API_TOKEN`
-- **SDK package:** `sybilion` (in requirements.txt)
 - **DO NOT use:** `mcp.sybilion.dev` — MCP proxy has user-mapping bugs
 - **Account:** `e909b765`, Tier 4, hackathon grant ~€10,000 (expires June 1 2026)
-- The existing `src/sybilion/client.py` uses the `sybilion` SDK which connects correctly
-- **Current limitation:** venv lacks `pandas` → Sybilion wrapper falls back to mock. Install with: `pip install pandas`
+- Sybilion liefert volle p05–p95 Quantile (19 pro Monat) — KEIN Aufweiten nötig
 
-## Known Issues & Fixes
+## Known Gaps (was noch fehlt)
 
-1. **CSV BOM encoding** — `carbon_emission_futures_data.csv` has UTF-8 BOM. Fixed in `market_service.py` by using `encoding="utf-8-sig"`.
-2. **Sybilion mock fallback** — `POST /forecasts/sybilion` returns mock because venv lacks `pandas`. Install `pandas` + set `SYBILION_API_TOKEN` for live calls.
-3. **Decision endpoints mock** — Both `/decisions/run` and `/decisions/scenario` return `mock_engine_not_connected` until teammate implements `src/engine/agent.py`.
+1. **Backend-Engine-Brücke fehlt:** `src/engine/agent.py` existiert nicht. Der `decision_adapter.py` sucht danach und gibt `mock_engine_not_connected` zurück. Die Pipeline in `carbonedge/` ist standalone per CLI nutzbar, aber nicht über die API-Endpoints `/decisions/run` und `/decisions/scenario` erreichbar.
 
-## How to Run
+2. **Emissions-Forecast nicht verdrahtet:** Heidelberg Materials hat 137 Monate echte/synthetische Emissionsdaten + einen Sybilion-Forecast. Aber der Forecast ist nicht an eine im Frontend auswählbare Firma gekoppelt.
+
+3. **EUA-Preis-Forecast veraltet:** Der gecachte EUA-Forecast hat nur p10/p50/p90. Sollte neu gezogen werden für volle p05–p95 wie der Emissions-Forecast.
+
+4. **Frontend zeigt unverbundene Karten:** Keine Kausalkette zwischen Emissions-Verlauf → Überschreitungs-Zeitpunkt → Defizit → Kaufplan. Fehlende Timeline-Visualisierung.
+
+5. **requirements.txt hat Merge-Conflict-Marker** (<<<<<<< / ======= / >>>>>>>). Muss bereinigt werden.
+
+## How to Run Backend
 
 ```bash
 pip install -r requirements.txt
@@ -117,12 +125,18 @@ uvicorn src.api.main:app --reload
 # Docs at http://localhost:8000/docs
 ```
 
-## Requirements (current)
+## How to Run Decision Engine (CLI)
 
-```
-sybilion
-scipy>=1.10.0
-pytest>=8.0.0
-fastapi
-uvicorn
+```bash
+# Without forecast (prepares request for Sybilion):
+python -m carbonedge.main
+
+# With forecast artifact:
+python -m carbonedge.main --forecast path/to/forecast.json
+
+# With scenario shift:
+python -m carbonedge.main --forecast forecast.json --scenario ets_reform
+
+# With external signals + backtest:
+python -m carbonedge.main --forecast forecast.json --external-signals signals.json --backtest-metrics backtest.json
 ```

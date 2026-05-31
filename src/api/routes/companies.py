@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, HTTPException
 
-from src.api.services import company_service
+from src.api.services import company_service, emissions_service
 
 router = APIRouter(prefix="/companies", tags=["companies"])
 
@@ -26,3 +26,11 @@ def get_company_position(company_id: str) -> dict:
     if company is None:
         raise HTTPException(status_code=404, detail=f"Company '{company_id}' not found")
     return company_service.compute_position(company)
+
+
+@router.get("/{company_id}/emissions-outlook")
+def get_company_emissions_outlook(company_id: str) -> dict:
+    outlook = emissions_service.emissions_outlook(company_id)
+    if outlook is None:
+        raise HTTPException(status_code=404, detail=f"Company '{company_id}' not found")
+    return outlook

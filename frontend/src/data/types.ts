@@ -38,6 +38,42 @@ export interface HistoryPoint {
   price: number
 }
 
+export interface EmissionsMonth {
+  month: string
+  label: string
+  isForecast: boolean
+  p10: number
+  p50: number
+  p90: number
+  cumP10: number
+  cumP50: number
+  cumP90: number
+}
+
+export interface EmissionsOvershoot {
+  startMonth: string
+  startLabel: string
+  expectedMonth: string
+  expectedLabel: string
+  endMonth: string
+  endLabel: string
+  label: string
+}
+
+/** Cumulative emissions outlook vs free allocation → overshoot zone. */
+export interface EmissionsOutlook {
+  companyId: string
+  company: string
+  unit: string
+  year: number
+  source: 'sybilion' | 'synthetic'
+  freeAllocation: number
+  annualEmissionsP50: number
+  annualDeficitP50: number
+  months: EmissionsMonth[]
+  overshoot: EmissionsOvershoot | null
+}
+
 export interface Driver {
   name: string
   importance: number // 0..100

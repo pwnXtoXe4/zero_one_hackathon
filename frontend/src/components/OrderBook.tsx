@@ -34,8 +34,8 @@ export function OrderBook({ orders }: { orders: Order[] }) {
   return (
     <Card>
       <div className="mb-3 flex items-center justify-between">
-        <span className="label">Live order book</span>
-        <span className="chip">{orders.length} firms</span>
+        <span className="label">Order book · illustrative</span>
+        <span className="chip">{orders.length} firms · simulated</span>
       </div>
       <div className="grid grid-cols-2 gap-4">
         <Side title="Buyers · short" rows={buys} color="#D97706" align="left" />

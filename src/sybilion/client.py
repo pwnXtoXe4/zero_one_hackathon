@@ -122,17 +122,21 @@ class SybilionWrapper:
 
     def _submit_live(self, body: dict, max_wait: int, poll_interval: int) -> ForecastArtifacts:
         """Submit to live API and poll."""
-        submit = self._client.submit_forecast(body)
+        submit = self._client.submit_forecast(self._to_request(body))
         job_id = submit.job_id
         print(f"  [Sybilion] Job submitted: {job_id}")
         print(f"  [Sybilion] Polling (max {max_wait}s, every {poll_interval}s)...")
 
         job = self._client.wait_forecast(job_id, poll_s=poll_interval, timeout_s=max_wait)
-        print(f"  [Sybilion] Job completed. Cost: {job.eur_cents_final} cents")
+        print(f"  [Sybilion] Job completed. Cost: {getattr(job, 'eur_cents_final', '?')} cents")
 
         # Fetch artifacts
         forecast_data = json.loads(self._client.get_forecast_artifact(job_id, "forecast.json"))
-        signals_data = json.loads(self._client.get_forecast_artifact(job_id, "external_signals.json"))
+        signals_data = {}
+        try:
+            signals_data = json.loads(self._client.get_forecast_artifact(job_id, "external_signals.json"))
+        except Exception:
+            pass
         backtest_data = None
         try:
             backtest_data = json.loads(self._client.get_forecast_artifact(job_id, "backtest_metrics.json"))
@@ -140,6 +144,19 @@ class SybilionWrapper:
             pass
 
         return ForecastArtifacts(forecast_data, signals_data, backtest_data)
+
+    @staticmethod
+    def _to_request(body: dict):
+        """Coerce a plain request dict into the SDK's typed ForecastRequestV1.
+
+        The generated SDK's ``submit_forecast`` requires the typed model;
+        passing a raw dict fails serialization. Falls back to the dict only if
+        the model class is unavailable (older/newer SDK layout)."""
+        try:
+            from sybilion._api.models.forecast_request_v1 import ForecastRequestV1
+        except Exception:
+            return body
+        return ForecastRequestV1.from_dict(body)
 
     def _cache_key(self, series: pd.Series, keywords: list[str], horizon: int) -> str:
         """Generate a deterministic cache key from input data."""

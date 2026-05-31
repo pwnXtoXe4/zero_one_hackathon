@@ -1,6 +1,7 @@
 import type {
-  AuctionDay, ChannelOption, Driver, ExecutionPlan, Firm, ForecastPoint, HistoryPoint, LadderStep,
-  Match, MixKey, MixSlice, Order, Position, Recommendation, Scenario, ScenarioDiff, Tranche,
+  AuctionDay, ChannelOption, Driver, EmissionsMonth, EmissionsOutlook, ExecutionPlan, Firm,
+  ForecastPoint, HistoryPoint, LadderStep, Match, MixKey, MixSlice, Order, Position, Recommendation,
+  Scenario, ScenarioDiff, Tranche,
 } from './types'
 import { tons } from '@/lib/utils'
 
@@ -13,6 +14,7 @@ export const FIRMS: Firm[] = [
   { id: 'greenchem', name: 'GreenChem GmbH', sector: 'Chemicals', baselineEmissions: 485000, freeAllocation: 400000, holdings: 20000 },
   { id: 'alpine_paper', name: 'AlpinePaper GmbH', sector: 'Paper', baselineEmissions: 320000, freeAllocation: 350000, holdings: 15000 },
   { id: 'voest_steel', name: 'Voest Alpine Stahl AG', sector: 'Steel', baselineEmissions: 1200000, freeAllocation: 900000, holdings: 150000 },
+  { id: 'heidelberg', name: 'Heidelberg Materials', sector: 'Cement', baselineEmissions: 31251000, freeAllocation: 24000000, holdings: 1500000 },
 ]
 
 export function positionOf(f: Firm): Position {
@@ -25,6 +27,58 @@ export function positionOf(f: Firm): Position {
     deficit,
     side: deficit >= 0 ? 'SHORT' : 'LONG',
     confidence: mag > 120000 ? 'high' : mag > 40000 ? 'medium' : 'low',
+  }
+}
+
+// ---- emissions outlook (cumulative 2026 vs free allocation) ----
+const SEASONAL = [0.86, 0.84, 0.95, 1.02, 1.05, 1.07, 1.08, 1.09, 1.05, 1.04, 0.99, 0.96]
+const LATEST_ACTUAL = 5 // through May 2026
+
+export function emissionsOutlook(f: Firm): EmissionsOutlook {
+  const annual = f.baselineEmissions
+  const base = annual / SEASONAL.reduce((s, x) => s + x, 0)
+  const months: EmissionsMonth[] = []
+  let c10 = 0
+  let c50 = 0
+  let c90 = 0
+  for (let m = 1; m <= 12; m++) {
+    const p50 = base * SEASONAL[m - 1]
+    const isFc = m > LATEST_ACTUAL
+    const spread = isFc ? 0.05 + 0.012 * (m - LATEST_ACTUAL) : 0
+    const p10 = p50 * (1 - spread)
+    const p90 = p50 * (1 + spread)
+    c10 += p10
+    c50 += p50
+    c90 += p90
+    months.push({
+      month: `2026-${String(m).padStart(2, '0')}`,
+      label: MONTHS[m - 1],
+      isForecast: isFc,
+      p10: Math.round(p10), p50: Math.round(p50), p90: Math.round(p90),
+      cumP10: Math.round(c10), cumP50: Math.round(c50), cumP90: Math.round(c90),
+    })
+  }
+  const alloc = f.freeAllocation
+  const cross = (k: 'cumP10' | 'cumP50' | 'cumP90') => months.find((mm) => mm[k] >= alloc)
+  const expected = cross('cumP50')
+  const overshoot = expected
+    ? (() => {
+        const start = cross('cumP90') ?? expected
+        const end = cross('cumP10') ?? months[months.length - 1]
+        return {
+          startMonth: start.month, startLabel: start.label,
+          expectedMonth: expected.month, expectedLabel: expected.label,
+          endMonth: end.month, endLabel: end.label,
+          label: start.month !== end.month ? `${start.label}–${end.label}` : start.label,
+        }
+      })()
+    : null
+  return {
+    companyId: f.id, company: f.name, unit: 'tCO2', year: 2026, source: 'synthetic',
+    freeAllocation: alloc,
+    annualEmissionsP50: months[months.length - 1].cumP50,
+    annualDeficitP50: months[months.length - 1].cumP50 - alloc,
+    months, overshoot,
   }
 }
 

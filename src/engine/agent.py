@@ -128,46 +128,96 @@ def _add_months(date_str: str, n: int) -> str:
     return f"{y}-{m:02d}-01"
 
 
+def _q(qmap: dict, *keys: str, default: Optional[float] = None) -> Optional[float]:
+    """First present quantile among `keys` (handles '0.05' vs '0.5' key styles)."""
+    for k in keys:
+        if k in qmap and qmap[k] is not None:
+            return float(qmap[k])
+    return default
+
+
 def _forecast_points(art: dict, shock: bool) -> list[dict]:
-    """Parse forecast_series → ordered list of monthly points with full bands."""
+    """Parse forecast_series → ordered list of monthly points with full bands.
+
+    Real Sybilion returns 19 quantiles ('0.05'..'0.95'); we use the exact p05,
+    p25, p50, p75, p95 with NO artificial widening. Synthesis from p10/p90 is a
+    fallback only when the real quantiles are absent (e.g. deterministic mode).
+    """
     fs = art["forecast"]["data"]["forecast_series"]
-    out = []
+    out: list[dict] = []
     for d in sorted(fs.keys()):
-        q = fs[d].get("quantile_forecast", {})
-        p50 = float(q.get("0.5", fs[d].get("forecast")))
-        p10 = float(q.get("0.1", p50 * 0.94))
-        p90 = float(q.get("0.9", p50 * 1.06))
+        pt = fs[d]
+        q = pt.get("quantile_forecast", {})
+        p50 = _q(q, "0.50", "0.5", default=pt.get("forecast"))
+        p50 = float(p50 if p50 is not None else pt.get("forecast", 0.0))
+        p10 = _q(q, "0.10", "0.1", default=p50 * 0.94)
+        p90 = _q(q, "0.90", "0.9", default=p50 * 1.06)
+        vals = {
+            "p05": _q(q, "0.05", default=p50 - (p50 - p10) * 1.25),
+            "p25": _q(q, "0.25", default=p50 - (p50 - p10) * 0.55),
+            "p50": p50,
+            "p75": _q(q, "0.75", default=p50 + (p90 - p50) * 0.55),
+            "p95": _q(q, "0.95", default=p50 + (p90 - p50) * 1.25),
+        }
         if shock:  # MSR supply cut → tighter market, confident upward repricing
             lift = 1.0 + 0.045 * (len(out) + 1)
-            p10, p50, p90 = p10 * lift, p50 * lift, p90 * lift
+            vals = {k: v * lift for k, v in vals.items()}
         mo = int(d[5:7])
-        out.append({
-            "month": d[:7], "label": MONTHS[mo - 1],
-            "p05": round(p50 - (p50 - p10) * 1.25, 1),
-            "p25": round(p50 - (p50 - p10) * 0.55, 1),
-            "p50": round(p50, 1),
-            "p75": round(p50 + (p90 - p50) * 0.55, 1),
-            "p95": round(p50 + (p90 - p50) * 1.25, 1),
-        })
+        out.append({"month": d[:7], "label": MONTHS[mo - 1],
+                    **{k: round(v, 1) for k, v in vals.items()}})
     return out[:6]
 
 
+def _clean_driver_name(name: str) -> str:
+    # Strip the U+FFFD replacement char that appears in some upstream source names.
+    return " ".join(name.replace("�", "-").split()).strip(" -")
+
+
 def _drivers(art: dict, shock: bool) -> list[dict]:
+    """Top drivers from Sybilion external_signals.
+
+    Real shape: {<id>: {driver_name, importance:{overall:{mean}}, direction:{overall:{mean}}}}
+    where importance is already 0..100 and direction is -1..1. Falls back to the
+    deterministic/mock shape {<name>: {importance:{month_x:{importance:0..1}}}}.
+    """
     data = art.get("signals", {}).get("data", {})
     drivers: list[dict] = []
     if isinstance(data, dict):
-        for name, info in data.items():
-            imp_map = (info or {}).get("importance", {}) if isinstance(info, dict) else {}
-            vals = [v.get("importance", 0) for v in imp_map.values() if isinstance(v, dict)]
-            imp = round(max(vals or [0]) * 100)
-            key = name.lower()
-            direction = next((s for k, s in _DRIVER_SIGN.items() if k in key), 0.5)
-            drivers.append({"name": name, "importance": imp, "direction": direction})
+        for key, info in data.items():
+            if not isinstance(info, dict):
+                continue
+            name = _clean_driver_name(str(info.get("driver_name", key)))
+            imp_overall = (info.get("importance", {}) or {}).get("overall")
+            if isinstance(imp_overall, dict) and imp_overall.get("mean") is not None:
+                imp = float(imp_overall["mean"])  # already 0..100
+                dir_overall = (info.get("direction", {}) or {}).get("overall", {}) or {}
+                direction = dir_overall.get("mean")
+                if direction is None:
+                    direction = next((s for k, s in _DRIVER_SIGN.items() if k in name.lower()), 0.5)
+            else:  # fallback / mock shape: importance is a 0..1 fraction per month
+                imp_map = (info.get("importance", {}) or {})
+                vals = [v.get("importance", 0) for v in imp_map.values() if isinstance(v, dict)]
+                imp = round(max(vals or [0]) * 100)
+                direction = next((s for k, s in _DRIVER_SIGN.items() if k in name.lower()), 0.5)
+            drivers.append({
+                "name": name,
+                "importance": round(max(0.0, min(100.0, float(imp)))),
+                "direction": round(max(-1.0, min(1.0, float(direction))), 3),
+            })
     if shock:
         drivers = [{"name": "Market Stability Reserve", "importance": 68, "direction": 0.9},
                    {"name": "Auction supply volume", "importance": 44, "direction": 0.9}] + drivers
     drivers.sort(key=lambda d: -d["importance"])
-    return drivers[:6] or [{"name": "EU ETS reform", "importance": 45, "direction": 0.8}]
+    seen: set[str] = set()
+    top: list[dict] = []
+    for d in drivers:
+        if d["name"] in seen:
+            continue
+        seen.add(d["name"])
+        top.append(d)
+        if len(top) >= 8:
+            break
+    return top or [{"name": "EU ETS reform", "importance": 45, "direction": 0.8}]
 
 
 def _interp_p(points: list[dict], month: str, key: str) -> float:
