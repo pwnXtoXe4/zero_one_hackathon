@@ -12,19 +12,19 @@ export function MarketSnapshot({
 }) {
   const last = forecast[forecast.length - 1]
   const spark = history.slice(-24).map((h) => h.price)
-  const color = scenario === 'shock' ? '#D97706' : '#2563EB'
+  const color = scenario === 'shock' ? '#D18500' : '#1E70B8'
   return (
-    <Card className="flex flex-col justify-between gap-4">
+    <Card className="flex flex-col justify-between gap-4 bg-[#F7FBFF]" style={{ '--card-accent': color } as React.CSSProperties}>
       <div className="flex items-start justify-between">
         <div>
           <span className="label">EUA spot price</span>
           <div className="font-display text-[40px] font-extrabold leading-none text-ink">€{CURRENT_PRICE.toFixed(2)}</div>
           <div className="mt-1 text-xs font-medium text-signal">▲ 1.4% today</div>
         </div>
-        <Sparkline data={spark} color="#0EA371" />
+        <Sparkline data={spark} color="#009B72" />
       </div>
 
-      <div className="rounded-xl border border-border bg-surface2/40 p-3.5">
+      <div className="rounded-lg border border-border bg-surface2/45 p-3.5">
         <div className="flex items-center justify-between">
           <span className="text-xs text-muted">Forecast · Oct 2026 (p50)</span>
           <TrendingUp size={14} style={{ color }} />

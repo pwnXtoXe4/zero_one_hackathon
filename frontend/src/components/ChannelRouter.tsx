@@ -1,4 +1,3 @@
-import { motion } from 'motion/react'
 import { Card, CHANNEL_COLOR, CHANNEL_LABEL } from './primitives'
 import type { ChannelOption, Scenario } from '@/data/types'
 import { cn, tons } from '@/lib/utils'
@@ -8,7 +7,7 @@ export function ChannelRouter({ channels, scenario }: { channels: ChannelOption[
   const routed = channels.filter((c) => c.recommendedVolume > 0).length
 
   return (
-    <Card>
+    <Card className="bg-[#F6FCF9]" style={{ '--card-accent': '#009B72' } as React.CSSProperties}>
       <div className="mb-1 flex items-center justify-between">
         <span className="label">Channel router · where to buy</span>
         <span className="chip">{routed} routed</span>
@@ -18,18 +17,14 @@ export function ChannelRouter({ channels, scenario }: { channels: ChannelOption[
       </p>
 
       <div className="space-y-2">
-        {channels.map((c, i) => {
+        {channels.map((c) => {
           const color = CHANNEL_COLOR[c.key]
           const isRouted = c.recommendedVolume > 0
           return (
-            <motion.div
+            <div
               key={c.key + scenario}
-              layout
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.06, ease: [0.22, 1, 0.36, 1] }}
               className={cn(
-                'rounded-xl border p-3 transition-colors',
+                'rounded-lg border p-3 transition-colors',
                 isRouted ? 'border-border bg-surface2/40' : 'border-border/50 bg-surface2/20 opacity-70',
               )}
               style={isRouted ? { boxShadow: `inset 2.5px 0 0 ${color}` } : undefined}
@@ -51,22 +46,19 @@ export function ChannelRouter({ channels, scenario }: { channels: ChannelOption[
               </div>
 
               <div className="mt-2 flex items-center gap-3">
-                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface2">
-                  <motion.div
-                    className="h-full rounded-full"
-                    style={{ background: color }}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${(c.recommendedVolume / maxRec) * 100}%` }}
-                    transition={{ duration: 0.7, delay: 0.1 + i * 0.06 }}
+                <div className="h-1.5 flex-1 overflow-hidden rounded-sm bg-surface2">
+                  <div
+                    className="flow-bar h-full rounded-sm"
+                    style={{ width: `${(c.recommendedVolume / maxRec) * 100}%`, background: color }}
                   />
                 </div>
-                <span className="w-16 shrink-0 text-right font-mono text-[12px]" style={{ color: isRouted ? color : '#94A3B8' }}>
+                <span className="w-16 shrink-0 text-right font-mono text-[12px]" style={{ color: isRouted ? color : '#7D8983' }}>
                   {isRouted ? tons(c.recommendedVolume) : '—'}
                 </span>
               </div>
 
               <p className="mt-1.5 text-[11px] leading-snug text-muted">{c.reason}</p>
-            </motion.div>
+            </div>
           )
         })}
       </div>

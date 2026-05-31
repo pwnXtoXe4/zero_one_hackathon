@@ -38,8 +38,8 @@ export function OrderBook({ orders }: { orders: Order[] }) {
         <span className="chip">{orders.length} firms · simulated</span>
       </div>
       <div className="grid grid-cols-2 gap-4">
-        <Side title="Buyers · short" rows={buys} color="#D97706" align="left" />
-        <Side title="Sellers · long" rows={sells} color="#0EA371" align="right" />
+        <Side title="Buyers · short" rows={buys} color="#D18500" align="left" />
+        <Side title="Sellers · long" rows={sells} color="#009B72" align="right" />
       </div>
     </Card>
   )

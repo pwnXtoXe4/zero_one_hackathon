@@ -1,11 +1,10 @@
-import { motion } from 'motion/react'
 import { ArrowUpRight, Target } from 'lucide-react'
 import { Card, ConfidenceBadge, AnimatedNumber, Donut, CHANNEL_COLOR, CHANNEL_LABEL } from './primitives'
 import type { ExecutionPlan, Scenario } from '@/data/types'
 import { eurM, tons } from '@/lib/utils'
 
 const ACTION_COLOR: Record<string, string> = {
-  BUY: '#D97706', LADDER: '#2563EB', SELL: '#0EA371', WAIT: '#0EA371',
+  BUY: '#D18500', LADDER: '#1E70B8', SELL: '#009B72', WAIT: '#009B72',
 }
 
 function Stat({ label, value, color }: { label: string; value: number; color: string }) {
@@ -21,25 +20,27 @@ function Stat({ label, value, color }: { label: string; value: number; color: st
 
 export function ExecutionPlanCard({ plan, scenario }: { plan: ExecutionPlan; scenario: Scenario }) {
   const shock = scenario === 'shock'
-  const color = shock ? '#D97706' : ACTION_COLOR[plan.action] ?? '#2563EB'
+  const color = shock ? '#D18500' : ACTION_COLOR[plan.action] ?? '#1E70B8'
   const total = plan.channelMix.reduce((s, m) => s + m.volume, 0) || 1
   const segs = plan.channelMix.map((m) => ({ value: m.volume, color: CHANNEL_COLOR[m.key] }))
 
   return (
     <Card
-      className="relative overflow-hidden"
-      style={shock ? { borderColor: 'rgba(255,178,62,0.45)', boxShadow: '0 0 70px -18px rgba(255,178,62,0.5)' } : undefined}
+      className="relative overflow-hidden bg-[#F8FBFF]"
+      style={
+        {
+          '--card-accent': color,
+          ...(shock ? { borderColor: 'rgba(209,133,0,0.45)' } : {}),
+        } as React.CSSProperties
+      }
     >
       <div className="flex items-center justify-between">
         <span className="label">Execution plan · how to procure</span>
         <ConfidenceBadge c={plan.confidence} />
       </div>
 
-      <motion.div
+      <div
         key={plan.action + scenario}
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
         className="mt-3 flex items-start gap-3"
       >
         <span className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 font-display text-xl font-bold" style={{ color, background: color + '1A' }}>
@@ -47,7 +48,7 @@ export function ExecutionPlanCard({ plan, scenario }: { plan: ExecutionPlan; sce
           {shock && <ArrowUpRight size={18} />}
         </span>
         <p className="pt-0.5 font-display text-[16px] font-semibold leading-snug text-ink">{plan.headline}</p>
-      </motion.div>
+      </div>
 
       {/* channel mix donut + legend */}
       <div className="mt-4 flex items-center gap-5">
@@ -74,7 +75,7 @@ export function ExecutionPlanCard({ plan, scenario }: { plan: ExecutionPlan; sce
       {/* cost summary */}
       <div className="mt-4 grid grid-cols-3 gap-3 border-t border-border pt-4">
         <Stat label="Expected spend" value={plan.expectedTotal} color="#0F172A" />
-        <Stat label="Worst case" value={plan.worstCase} color="#EA6A3A" />
+        <Stat label="Worst case" value={plan.worstCase} color="#D66A2E" />
         <Stat label="Saved vs year-end" value={plan.savingsVsYearEnd} color={color} />
       </div>
 
@@ -82,17 +83,14 @@ export function ExecutionPlanCard({ plan, scenario }: { plan: ExecutionPlan; sce
       <div className="mt-4">
         <span className="label flex items-center gap-1.5"><Target size={12} /> Monitoring triggers</span>
         <ul className="mt-2 space-y-1.5">
-          {plan.triggers.map((t, i) => (
-            <motion.li
+          {plan.triggers.map((t) => (
+            <li
               key={t}
-              initial={{ opacity: 0, x: -6 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.1 + i * 0.07 }}
               className="flex items-start gap-2 text-[12px] leading-snug text-ink/75"
             >
               <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full" style={{ background: color }} />
               {t}
-            </motion.li>
+            </li>
           ))}
         </ul>
       </div>

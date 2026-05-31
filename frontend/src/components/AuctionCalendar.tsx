@@ -1,11 +1,10 @@
-import { motion } from 'motion/react'
 import { Gavel } from 'lucide-react'
 import { Card } from './primitives'
 import type { AuctionDay, Scenario } from '@/data/types'
 import { tons } from '@/lib/utils'
 
 const TYPE: Record<string, [string, string]> = {
-  CAP3: ['CAP3 · EU', '#0EA371'], GERMANY: ['Germany', '#2563EB'], POLAND: ['Poland', '#8B5CF6'],
+  CAP3: ['CAP3 · EU', '#009B72'], GERMANY: ['Germany', '#1E70B8'], POLAND: ['Poland', '#C19A16'],
 }
 
 export function AuctionCalendar({ auctions, scenario }: { auctions: AuctionDay[]; scenario: Scenario }) {
@@ -13,7 +12,7 @@ export function AuctionCalendar({ auctions, scenario }: { auctions: AuctionDay[]
   const maxVol = Math.max(...auctions.map((a) => a.volume), 1)
 
   return (
-    <Card>
+    <Card className="bg-[#F8FBFF]" style={{ '--card-accent': '#1E70B8' } as React.CSSProperties}>
       <div className="flex items-center justify-between">
         <span className="label flex items-center gap-1.5">
           <Gavel size={13} /> Primary market · EU ETS auctions
@@ -27,17 +26,14 @@ export function AuctionCalendar({ auctions, scenario }: { auctions: AuctionDay[]
       </p>
 
       <div className="mt-3.5 flex gap-3 overflow-x-auto pb-1">
-        {auctions.map((a, i) => {
-          const [tag, tc] = TYPE[a.type] ?? [a.type, '#64748B']
+        {auctions.map((a) => {
+          const [tag, tc] = TYPE[a.type] ?? [a.type, '#69756F']
           const targeted = a.targetVolume > 0
-          const accent = a.msrAffected ? '#D97706' : targeted ? '#0EA371' : null
+          const accent = a.msrAffected ? '#D18500' : targeted ? '#009B72' : null
           return (
-            <motion.div
+            <div
               key={a.id + scenario}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.06, ease: [0.22, 1, 0.36, 1] }}
-              className="relative min-w-[162px] flex-1 rounded-xl border bg-surface2/50 p-3"
+              className="relative min-w-[162px] flex-1 rounded-lg border bg-surface2/55 p-3"
               style={{ borderColor: accent ? accent + '66' : undefined }}
             >
               <div className="flex items-center justify-between">
@@ -56,13 +52,10 @@ export function AuctionCalendar({ auctions, scenario }: { auctions: AuctionDay[]
                   <span className="text-muted">Volume</span>
                   <span className="font-mono text-ink">{tons(a.volume)}</span>
                 </div>
-                <div className="h-1.5 overflow-hidden rounded-full bg-surface2">
-                  <motion.div
-                    className="h-full rounded-full"
-                    style={{ background: tc }}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${(a.volume / maxVol) * 100}%` }}
-                    transition={{ duration: 0.6, delay: 0.1 + i * 0.05 }}
+                <div className="h-1.5 overflow-hidden rounded-sm bg-surface2">
+                  <div
+                    className="flow-bar h-full rounded-sm"
+                    style={{ width: `${(a.volume / maxVol) * 100}%`, background: tc }}
                   />
                 </div>
                 <div className="flex items-center justify-between text-[11px]">
@@ -83,7 +76,7 @@ export function AuctionCalendar({ auctions, scenario }: { auctions: AuctionDay[]
                   {a.recommendedBid != null ? `Watch · max €${a.recommendedBid.toFixed(1)}` : 'Monitor only'}
                 </div>
               )}
-            </motion.div>
+            </div>
           )
         })}
       </div>
